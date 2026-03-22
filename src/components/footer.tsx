@@ -71,9 +71,17 @@ export function Footer() {
 
         <Separator className="my-10 bg-white/10" />
 
-        <p className="text-xs text-white/30">
-          &copy; {new Date().getFullYear()} GDP Tahoe. All rights reserved.
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-white/30">
+            &copy; {new Date().getFullYear()} GDP Tahoe. All rights reserved.
+          </p>
+          <Link
+            href="/admin"
+            className="text-xs text-white/20 transition-colors hover:text-white/50"
+          >
+            Owner Portal
+          </Link>
+        </div>
       </div>
     </footer>
   );
