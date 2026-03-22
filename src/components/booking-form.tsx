@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { DayPicker, DateRange } from "react-day-picker";
-import "react-day-picker/style.css";
 import { differenceInCalendarDays, isBefore, startOfDay } from "date-fns";
+import { DateRangePicker } from "@/components/date-range-picker";
 
 import type { Property } from "@/lib/properties";
 import { cn } from "@/lib/utils";
@@ -29,7 +28,7 @@ interface PriceSummary {
 
 function calculatePrice(
   property: Property,
-  dateRange: DateRange | undefined
+  dateRange: { from: Date | undefined; to: Date | undefined } | undefined
 ): PriceSummary | null {
   if (!dateRange?.from || !dateRange?.to) return null;
 
@@ -54,7 +53,9 @@ function calculatePrice(
 }
 
 export function BookingForm({ property }: BookingFormProps) {
-  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [dateRange, setDateRange] = useState<
+    { from: Date | undefined; to: Date | undefined } | undefined
+  >();
   const [guests, setGuests] = useState(1);
   const [disabledDates, setDisabledDates] = useState<Date[]>([]);
   const [loadingDates, setLoadingDates] = useState(true);
@@ -217,32 +218,12 @@ export function BookingForm({ property }: BookingFormProps) {
                   <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#0f1d3d]/20 border-t-[#0f1d3d]" />
                 </div>
               ) : (
-                <div className="gdp-calendar flex justify-center">
-                  <DayPicker
-                    mode="range"
-                    selected={dateRange}
-                    onSelect={setDateRange}
-                    numberOfMonths={2}
-                    disabled={disabledMatcher}
-                    min={2}
-                    classNames={{
-                      root: "gdp-calendar-root",
-                      months: "gdp-calendar-months",
-                      month_caption: "gdp-calendar-caption",
-                      nav: "gdp-calendar-nav",
-                      weekday: "gdp-calendar-weekday",
-                      day: "gdp-calendar-day",
-                      selected: "gdp-calendar-selected",
-                      range_start: "gdp-calendar-range-start",
-                      range_end: "gdp-calendar-range-end",
-                      range_middle: "gdp-calendar-range-middle",
-                      today: "gdp-calendar-today",
-                      disabled: "gdp-calendar-disabled",
-                      chevron: "gdp-calendar-chevron",
-                      outside: "gdp-calendar-outside",
-                    }}
-                  />
-                </div>
+                <DateRangePicker
+                  selected={dateRange}
+                  onSelect={setDateRange}
+                  disabled={disabledMatcher}
+                  minNights={2}
+                />
               )}
               {dateRange?.from && dateRange?.to && price && (
                 <p className="mt-4 text-center text-sm text-muted-foreground">
