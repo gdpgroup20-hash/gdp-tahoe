@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { getProperty } from "@/lib/properties";
-import { calculatePrice } from "@/lib/availability";
+import { calculatePriceWithSeasonalRates } from "@/lib/availability";
 import { addBooking, generateBookingId } from "@/lib/bookings";
 
 export async function POST(request: Request) {
@@ -50,8 +50,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // Calculate price
-    const pricing = calculatePrice(
+    // Calculate price (with seasonal rate support)
+    const pricing = await calculatePriceWithSeasonalRates(
+      propertySlug,
       property.nightlyRate,
       property.weeklyDiscount,
       property.cleaningFee,

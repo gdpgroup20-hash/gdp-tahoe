@@ -1,0 +1,22 @@
+{
+  "elevation-estate": {
+    "baseRate": 5656,
+    "cleaningFee": 500,
+    "weeklyDiscount": 10,
+    "seasonalRates": [
+      {
+        "id": "ee-summer-2026",
+        "label": "Summer Peak",
+        "startDate": "2026-06-01",
+        "endDate": "2026-08-31",
+        "rate": 7500
+      }
+    ]
+  },
+  "turquoise": {
+    "baseRate": 883,
+    "cleaningFee": 200,
+    "weeklyDiscount": 10,
+    "seasonalRates": []
+  }
+}
