@@ -67,13 +67,13 @@ export function Navbar() {
           ))}
           <Link href="/book/elevation-estate">
             <Button
-              variant={scrolled ? "default" : "outline"}
+              variant="default"
               size="sm"
               className={cn(
-                "tracking-wide uppercase text-xs font-semibold rounded-none px-5",
+                "tracking-wide uppercase text-xs font-semibold rounded-none px-5 transition-colors duration-300",
                 scrolled
                   ? "bg-[#0f1d3d] text-white hover:bg-[#0f1d3d]/90"
-                  : "border-white/60 text-white hover:bg-white/10"
+                  : "bg-white text-[#0f1d3d] hover:bg-white/90 border-0"
               )}
             >
               Reserve
