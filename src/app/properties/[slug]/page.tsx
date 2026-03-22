@@ -10,6 +10,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { GalleryModal } from "@/components/gallery-modal";
 
 interface PropertyPageProps {
   params: Promise<{ slug: string }>;
@@ -125,7 +126,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
                 Gallery
               </h2>
               <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
-                {property.galleryImages.map((src, i) => (
+                {property.galleryImages.slice(0, 6).map((src, i) => (
                   <div
                     key={i}
                     className="group relative aspect-[4/3] overflow-hidden rounded-xl"
@@ -140,6 +141,10 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
                   </div>
                 ))}
               </div>
+              <GalleryModal
+                images={property.allImages}
+                propertyName={property.name}
+              />
             </section>
 
             <Separator />

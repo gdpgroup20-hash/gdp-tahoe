@@ -217,7 +217,7 @@ export function BookingForm({ property }: BookingFormProps) {
                   <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#0f1d3d]/20 border-t-[#0f1d3d]" />
                 </div>
               ) : (
-                <div className="flex justify-center">
+                <div className="gdp-calendar flex justify-center">
                   <DayPicker
                     mode="range"
                     selected={dateRange}
@@ -226,15 +226,20 @@ export function BookingForm({ property }: BookingFormProps) {
                     disabled={disabledMatcher}
                     min={2}
                     classNames={{
-                      root: "text-sm",
-                      selected: "bg-[#0f1d3d] text-white",
-                      range_start:
-                        "bg-[#0f1d3d] text-white rounded-l-full",
-                      range_end:
-                        "bg-[#0f1d3d] text-white rounded-r-full",
-                      range_middle: "bg-[#0f1d3d]/10 text-[#0f1d3d]",
-                      today: "font-bold text-[#0f1d3d]",
-                      chevron: "fill-[#0f1d3d]",
+                      root: "gdp-calendar-root",
+                      months: "gdp-calendar-months",
+                      month_caption: "gdp-calendar-caption",
+                      nav: "gdp-calendar-nav",
+                      weekday: "gdp-calendar-weekday",
+                      day: "gdp-calendar-day",
+                      selected: "gdp-calendar-selected",
+                      range_start: "gdp-calendar-range-start",
+                      range_end: "gdp-calendar-range-end",
+                      range_middle: "gdp-calendar-range-middle",
+                      today: "gdp-calendar-today",
+                      disabled: "gdp-calendar-disabled",
+                      chevron: "gdp-calendar-chevron",
+                      outside: "gdp-calendar-outside",
                     }}
                   />
                 </div>
