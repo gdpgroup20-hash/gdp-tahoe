@@ -62,7 +62,7 @@ export async function initDb() {
   // Seed maintenance tasks
   await sql`
     INSERT INTO maintenance_tasks (id, property, appliance, task, interval_days, last_completed, next_due, notes, created_at)
-    VALUES ('mt-seed-ice-maker', 'elevation-estate', 'Ice Maker', 'Clean ice maker', 180, '2026-03-22', '2026-09-22', 'Installed 2026-03-22', '2026-03-22')
+    VALUES ('mt-seed-ice-maker', 'elevation-estate', 'Ice Maker', 'Clean ice maker', 180, '2026-03-22', '2026-09-22', 'IcePure HBZB-36F. Installed 2026-03-22.', '2026-03-22')
     ON CONFLICT (id) DO NOTHING
   `;
   await sql`
