@@ -24,8 +24,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ bookings });
   } catch (error) {
     console.error("Error fetching bookings:", error);
+    const msg = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      { error: "Failed to fetch bookings" },
+      { error: `Failed to fetch bookings: ${msg}` },
       { status: 500 }
     );
   }
