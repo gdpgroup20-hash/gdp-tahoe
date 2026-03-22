@@ -59,10 +59,20 @@ export async function initDb() {
       created_at TEXT NOT NULL
     )
   `;
-  // Seed default maintenance task
+  // Seed maintenance tasks
   await sql`
     INSERT INTO maintenance_tasks (id, property, appliance, task, interval_days, last_completed, next_due, notes, created_at)
     VALUES ('mt-seed-ice-maker', 'elevation-estate', 'Ice Maker', 'Clean ice maker', 180, '2026-03-22', '2026-09-22', 'Installed 2026-03-22', '2026-03-22')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO maintenance_tasks (id, property, appliance, task, interval_days, last_completed, next_due, notes, created_at)
+    VALUES ('mt-seed-deck-oil', 'both', 'Decks', 'Oil decks', 365, '2026-03-22', '2027-03-22', 'Previously oiled Apr 1 2025. Oiled again Mar 22 2026.', '2026-03-22')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO maintenance_tasks (id, property, appliance, task, interval_days, last_completed, next_due, notes, created_at)
+    VALUES ('mt-seed-deck-sand', 'both', 'Decks', 'Sand decks', 730, '2025-04-01', '2027-04-01', 'Sanded and oiled Apr 1 2025. Next sanding due Apr 2027.', '2026-03-22')
     ON CONFLICT (id) DO NOTHING
   `;
 }
