@@ -206,7 +206,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
 
           {/* Right column — Pricing Card (sticky on desktop) */}
           <div className="hidden lg:block">
-            <div className="sticky top-8">
+            <div className="sticky top-24">
               <Card className="overflow-hidden border-0 shadow-xl ring-1 ring-[#0f1d3d]/10">
                 {/* Card header */}
                 <div className="bg-[#0f1d3d] px-6 py-6 text-white">
