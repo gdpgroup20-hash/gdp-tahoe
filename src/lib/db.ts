@@ -77,7 +77,7 @@ export async function initDb() {
   `;
   await sql`
     INSERT INTO maintenance_tasks (id, property, appliance, task, interval_days, last_completed, next_due, notes, created_at)
-    VALUES ('mt-seed-windows', 'elevation-estate', 'Windows', 'Clean windows (MXB Windows)', 365, '2023-05-19', '2024-05-19', 'MXB Windows — Michael Brown 530-448-9001. Last cleaned May 19 2023 (Invoice 3837, $3,400). OVERDUE.', '2026-03-22')
+    VALUES ('mt-seed-windows', 'elevation-estate', 'Windows', 'Clean windows', 365, '2024-05-01', '2026-05-01', 'MXB Windows — Michael Brown 530-448-9001. Cleaned May 2023 (Invoice 3837 $3,400) and May 2024. Missed 2025.', '2026-03-22')
     ON CONFLICT (id) DO NOTHING
   `;
 }
