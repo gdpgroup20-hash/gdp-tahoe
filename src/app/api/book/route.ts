@@ -4,12 +4,11 @@ import { getProperty } from "@/lib/properties";
 import { calculatePrice } from "@/lib/availability";
 import { addBooking, generateBookingId } from "@/lib/bookings";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  // @ts-expect-error — Stripe SDK types may not match the latest API version string
-  apiVersion: "2023-10-16",
-});
-
 export async function POST(request: Request) {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    // @ts-expect-error — Stripe SDK types may not match the latest API version string
+    apiVersion: "2023-10-16",
+  });
   try {
     const body = await request.json();
     const {

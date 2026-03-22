@@ -3,14 +3,12 @@ import Stripe from "stripe";
 import { Resend } from "resend";
 import { updateBookingStatus } from "@/lib/bookings";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  // @ts-expect-error — Stripe SDK types may not match the latest API version string
-  apiVersion: "2023-10-16",
-});
-
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export async function POST(request: Request) {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    // @ts-expect-error — Stripe SDK types may not match the latest API version string
+    apiVersion: "2023-10-16",
+  });
+  const resend = new Resend(process.env.RESEND_API_KEY);
   const body = await request.text();
   const signature = request.headers.get("stripe-signature");
 
