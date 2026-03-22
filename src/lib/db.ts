@@ -80,4 +80,14 @@ export async function initDb() {
     VALUES ('mt-seed-windows', 'elevation-estate', 'Windows', 'Clean windows', 365, '2024-05-01', '2026-05-01', 'MXB Windows — Michael Brown 530-448-9001. Cleaned May 2023 (Invoice 3837 $3,400) and May 2024. Missed 2025.', '2026-03-22')
     ON CONFLICT (id) DO NOTHING
   `;
+  await sql`
+    INSERT INTO maintenance_tasks (id, property, appliance, task, interval_days, last_completed, next_due, notes, created_at)
+    VALUES ('mt-seed-landscaping-spring', 'both', 'Landscaping', 'Spring clean-up & irrigation activation', 365, '2025-05-08', '2026-05-01', 'A Thyme to Plant — Shana Behan 530-448-1440 shana@athymetoplanttahoe.com. Both 6229 NLB and 5233 Turquoise. Spring clean-up + pine needles + irrigation on. She emailed Mar 22 2026 touching base for this season.', '2026-03-22')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO maintenance_tasks (id, property, appliance, task, interval_days, last_completed, next_due, notes, created_at)
+    VALUES ('mt-seed-landscaping-fall', 'both', 'Landscaping', 'Fall winterization & irrigation off', 365, '2025-10-01', '2026-10-01', 'A Thyme to Plant — Shana Behan 530-448-1440 shana@athymetoplanttahoe.com. Both properties. Irrigation winterization + fall garden clean-up.', '2026-03-22')
+    ON CONFLICT (id) DO NOTHING
+  `;
 }
