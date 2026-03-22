@@ -1,5 +1,4 @@
-import { promises as fs } from "fs";
-import path from "path";
+import { getDb, initDb } from "@/lib/db";
 
 export interface Booking {
   id: string;
@@ -18,54 +17,71 @@ export interface Booking {
   createdAt: string;
 }
 
-const BOOKINGS_FILE = path.join(process.cwd(), "data", "bookings.json");
-
-async function ensureDataDir() {
-  const dir = path.dirname(BOOKINGS_FILE);
-  try {
-    await fs.access(dir);
-  } catch {
-    await fs.mkdir(dir, { recursive: true });
-  }
+function rowToBooking(row: Record<string, unknown>): Booking {
+  return {
+    id: row.id as string,
+    propertySlug: row.property_slug as string,
+    propertyName: row.property_name as string,
+    guestName: row.guest_name as string,
+    guestEmail: row.guest_email as string,
+    guestPhone: row.guest_phone as string,
+    checkIn: row.check_in as string,
+    checkOut: row.check_out as string,
+    guests: Number(row.guests),
+    specialRequests: row.special_requests as string,
+    totalPrice: Number(row.total_price),
+    stripePaymentIntentId: row.stripe_payment_intent_id as string,
+    status: row.status as Booking["status"],
+    createdAt: row.created_at as string,
+  };
 }
 
 export async function getBookings(): Promise<Booking[]> {
-  await ensureDataDir();
-  try {
-    const data = await fs.readFile(BOOKINGS_FILE, "utf-8");
-    return JSON.parse(data);
-  } catch {
-    return [];
-  }
+  await initDb();
+  const sql = getDb();
+  const rows = await sql`SELECT * FROM bookings ORDER BY created_at DESC`;
+  return rows.map(rowToBooking);
 }
 
 export async function addBooking(booking: Booking): Promise<void> {
-  const bookings = await getBookings();
-  bookings.push(booking);
-  await fs.writeFile(BOOKINGS_FILE, JSON.stringify(bookings, null, 2));
+  await initDb();
+  const sql = getDb();
+  await sql`
+    INSERT INTO bookings (
+      id, property_slug, property_name, guest_name, guest_email, guest_phone,
+      check_in, check_out, guests, special_requests, total_price,
+      stripe_payment_intent_id, status, created_at
+    ) VALUES (
+      ${booking.id}, ${booking.propertySlug}, ${booking.propertyName},
+      ${booking.guestName}, ${booking.guestEmail}, ${booking.guestPhone},
+      ${booking.checkIn}, ${booking.checkOut}, ${booking.guests},
+      ${booking.specialRequests}, ${booking.totalPrice},
+      ${booking.stripePaymentIntentId}, ${booking.status}, ${booking.createdAt}
+    )
+  `;
 }
 
 export async function updateBookingStatus(
   paymentIntentId: string,
   status: Booking["status"]
 ): Promise<Booking | null> {
-  const bookings = await getBookings();
-  const booking = bookings.find(
-    (b) => b.stripePaymentIntentId === paymentIntentId
-  );
-  if (booking) {
-    booking.status = status;
-    await fs.writeFile(BOOKINGS_FILE, JSON.stringify(bookings, null, 2));
-    return booking;
-  }
-  return null;
+  await initDb();
+  const sql = getDb();
+  const rows = await sql`
+    UPDATE bookings SET status = ${status}
+    WHERE stripe_payment_intent_id = ${paymentIntentId}
+    RETURNING *
+  `;
+  return rows.length > 0 ? rowToBooking(rows[0]) : null;
 }
 
-export async function getBookingsByProperty(
-  propertySlug: string
-): Promise<Booking[]> {
-  const bookings = await getBookings();
-  return bookings.filter((b) => b.propertySlug === propertySlug);
+export async function getBookingsByProperty(propertySlug: string): Promise<Booking[]> {
+  await initDb();
+  const sql = getDb();
+  const rows = await sql`
+    SELECT * FROM bookings WHERE property_slug = ${propertySlug} ORDER BY created_at DESC
+  `;
+  return rows.map(rowToBooking);
 }
 
 export function generateBookingId(): string {
