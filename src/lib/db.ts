@@ -46,4 +46,23 @@ export async function initDb() {
     VALUES ('turquoise', 883, 200, 10, '[]')
     ON CONFLICT (property_slug) DO NOTHING
   `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS maintenance_tasks (
+      id TEXT PRIMARY KEY,
+      property TEXT NOT NULL,
+      appliance TEXT NOT NULL,
+      task TEXT NOT NULL,
+      interval_days INTEGER NOT NULL,
+      last_completed TEXT,
+      next_due TEXT NOT NULL,
+      notes TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL
+    )
+  `;
+  // Seed default maintenance task
+  await sql`
+    INSERT INTO maintenance_tasks (id, property, appliance, task, interval_days, last_completed, next_due, notes, created_at)
+    VALUES ('mt-seed-ice-maker', 'elevation-estate', 'Ice Maker', 'Clean ice maker', 180, '2026-03-22', '2026-09-22', 'Installed 2026-03-22', '2026-03-22')
+    ON CONFLICT (id) DO NOTHING
+  `;
 }
