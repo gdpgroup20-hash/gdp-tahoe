@@ -30,9 +30,40 @@ export async function generateMetadata({
     return { title: "Property Not Found | GDP Tahoe" };
   }
 
+  const isElevation = slug === "elevation-estate";
+  const title = isElevation
+    ? "Elevation Estate — 7BR Luxury Lakefront Villa with Private Pier | GDP Tahoe"
+    : "Turquoise Tavern — 3BR Lake View Cabin, Steps from the Beach | GDP Tahoe";
+  const description = isElevation
+    ? "Book direct: Award-winning 5,800 sq ft lakefront estate on Agate Bay, North Lake Tahoe. 7 bedrooms, 6.5 baths, 270° panoramic views, private deep-water pier, 24/7 concierge. Sleeps 12. No service fees."
+    : "Book direct: Charming 2,100 sq ft cabin steps from the beach in Carnelian Bay, North Lake Tahoe. 3 bedrooms, saltwater hot tub, partial lake views, 5-min walk to Garwoods. Sleeps 7. No service fees.";
+
+  const heroImage = `https://www.staygdptahoe.com${property.heroImage}`;
+
   return {
-    title: `${property.name} | GDP Tahoe`,
-    description: property.description,
+    title,
+    description,
+    keywords: isElevation
+      ? ["Elevation Estate Lake Tahoe", "luxury lakefront rental Tahoe", "private pier Lake Tahoe", "Carnelian Bay vacation rental", "Agate Bay rental", "luxury villa North Lake Tahoe", "direct booking Elevation Estate"]
+      : ["Turquoise Tavern Lake Tahoe", "Carnelian Bay cabin rental", "North Lake Tahoe beach rental", "hot tub cabin Tahoe", "walk to beach Lake Tahoe rental", "direct booking Turquoise Tavern"],
+    openGraph: {
+      title,
+      description,
+      url: `https://www.staygdptahoe.com/properties/${slug}`,
+      siteName: "GDP Tahoe",
+      images: [{ url: heroImage, width: 1200, height: 800, alt: property.name }],
+      locale: "en_US",
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [heroImage],
+    },
+    alternates: {
+      canonical: `https://www.staygdptahoe.com/properties/${slug}`,
+    },
   };
 }
 
@@ -46,8 +77,64 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
 
   const formattedRate = property.nightlyRate.toLocaleString();
 
+  const isElevation = slug === "elevation-estate";
+  const coordinates = isElevation
+    ? { lat: 39.23654, lng: -120.07891 }
+    : { lat: 39.23512, lng: -120.07743 };
+
+  const schemaJson = {
+    "@context": "https://schema.org",
+    "@type": "VacationRental",
+    "name": property.name,
+    "description": property.description,
+    "url": `https://www.staygdptahoe.com/properties/${slug}`,
+    "image": property.allImages
+      ? property.allImages.slice(0, 20).map((img: string) => `https://www.staygdptahoe.com${img}`)
+      : [`https://www.staygdptahoe.com${property.heroImage}`],
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Carnelian Bay",
+      "addressRegion": "CA",
+      "postalCode": "96140",
+      "addressCountry": "US",
+    },
+    "geo": {
+      "@type": "GeoCoordinates",
+      "latitude": coordinates.lat,
+      "longitude": coordinates.lng,
+    },
+    "occupancy": {
+      "@type": "QuantitativeValue",
+      "value": property.sleeps,
+    },
+    "numberOfRooms": property.bedrooms,
+    "numberOfBathroomsTotal": property.bathrooms,
+    "amenityFeature": property.amenities.map((a: string) => ({
+      "@type": "LocationFeatureSpecification",
+      "name": a,
+      "value": true,
+    })),
+    "priceRange": `From $${property.nightlyRate.toLocaleString()}/night`,
+    "telephone": "",
+    "containsPlace": {
+      "@type": "Accommodation",
+      "name": property.name,
+      "numberOfBedrooms": property.bedrooms,
+      "occupancy": { "@type": "QuantitativeValue", "value": property.sleeps },
+      "amenityFeature": property.amenities.map((a: string) => ({
+        "@type": "LocationFeatureSpecification",
+        "name": a,
+        "value": true,
+      })),
+    },
+  };
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaJson) }}
+      />
       {/* ===== Hero Section ===== */}
       <section className="relative h-[70vh] min-h-[500px] w-full overflow-hidden">
         <Image

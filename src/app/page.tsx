@@ -91,9 +91,37 @@ const testimonials = [
   },
 ];
 
+const organizationSchema = {
+  "@context": "https://schema.org",
+  "@type": "LodgingBusiness",
+  "name": "GDP Tahoe",
+  "url": "https://www.staygdptahoe.com",
+  "logo": "https://www.staygdptahoe.com/images/elevation/e6ecf408-354c-4c00-9227-7d55280bd66b.jpeg",
+  "description": "Luxury vacation rentals on the North Shore of Lake Tahoe. Two private properties — Elevation Estate and Turquoise Tavern — available for direct booking with no service fees.",
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "Carnelian Bay",
+    "addressRegion": "CA",
+    "postalCode": "96140",
+    "addressCountry": "US",
+  },
+  "geo": {
+    "@type": "GeoCoordinates",
+    "latitude": 39.23600,
+    "longitude": -120.07820,
+  },
+  "telephone": "",
+  "sameAs": ["https://www.instagram.com/gdp_tahoe/"],
+  "hasMap": "https://maps.google.com/?q=Carnelian+Bay+CA",
+};
+
 export default function Home() {
   return (
     <main className="bg-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+      />
       {/* ───────────────────── Hero ───────────────────── */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         <Image
