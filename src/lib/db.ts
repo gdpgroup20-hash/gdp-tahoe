@@ -100,4 +100,32 @@ export async function initDb() {
     VALUES ('mt-seed-landscaping-fall', 'both', 'Landscaping', 'Fall winterization & irrigation off', 365, '2025-10-01', '2026-10-01', 'A Thyme to Plant — Shana Behan 530-448-1440 shana@athymetoplanttahoe.com. Both properties. Irrigation winterization + fall garden clean-up.', '2026-03-22')
     ON CONFLICT (id) DO NOTHING
   `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS email_campaigns (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'draft',
+      sent_at TEXT,
+      recipient_count INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL
+    )
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS email_campaign_recipients (
+      id TEXT PRIMARY KEY,
+      campaign_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      opened INTEGER NOT NULL DEFAULT 0,
+      clicked INTEGER NOT NULL DEFAULT 0,
+      opened_at TEXT,
+      clicked_at TEXT
+    )
+  `;
+  await sql`
+    INSERT INTO email_campaigns (id, name, subject, status, recipient_count, created_at)
+    VALUES ('camp-staycation-2026', 'Staycation TV Feature', 'Elevation Estate is about to be on TV + a gift for you', 'draft', 0, '2026-03-23')
+    ON CONFLICT (id) DO NOTHING
+  `;
 }

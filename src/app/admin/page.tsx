@@ -23,6 +23,8 @@ import {
   X,
   Pencil,
   Wrench,
+  Send,
+  ArrowLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -792,6 +794,317 @@ function PricingTab({ authToken }: { authToken: string }) {
   );
 }
 
+// ─── Campaigns Tab ──────────────────────────────────────────────────────────
+
+interface CampaignData {
+  id: string;
+  name: string;
+  subject: string;
+  status: string;
+  sentAt: string | null;
+  recipientCount: number;
+  createdAt: string;
+  openRate: number;
+  clickRate: number;
+  grade: string;
+  recipients: {
+    id: string;
+    campaignId: string;
+    name: string;
+    email: string;
+    opened: number;
+    clicked: number;
+    openedAt: string | null;
+    clickedAt: string | null;
+  }[];
+}
+
+function gradeColor(grade: string): string {
+  switch (grade) {
+    case "A": return "bg-green-100 text-green-800";
+    case "B": return "bg-blue-100 text-blue-800";
+    case "C": return "bg-yellow-100 text-yellow-800";
+    case "D": return "bg-orange-100 text-orange-800";
+    case "F": return "bg-red-100 text-red-800";
+    default: return "bg-gray-100 text-gray-800";
+  }
+}
+
+function campaignInsight(grade: string, status: string): string {
+  if (status === "draft") return "This campaign hasn't been sent yet. Add recipients and send when ready.";
+  switch (grade) {
+    case "A": return "Outstanding engagement! Your audience loved this campaign.";
+    case "B": return "Strong performance. Subject line and content resonated well.";
+    case "C": return "Decent results. Consider A/B testing subject lines to improve open rates.";
+    case "D": return "Below average engagement. Try personalizing content and segmenting your audience.";
+    case "F": return "Very low engagement. Review your recipient list quality and sending time.";
+    default: return "No engagement data available yet.";
+  }
+}
+
+function CampaignsTab({ authToken }: { authToken: string }) {
+  const [campaigns, setCampaigns] = useState<CampaignData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<CampaignData | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [formName, setFormName] = useState("");
+  const [formSubject, setFormSubject] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  const fetchCampaigns = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/campaigns", {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCampaigns(data.campaigns);
+      }
+    } catch {
+      // silent
+    } finally {
+      setLoading(false);
+    }
+  }, [authToken]);
+
+  useEffect(() => {
+    fetchCampaigns();
+  }, [fetchCampaigns]);
+
+  const fetchDetail = useCallback(async (id: string) => {
+    setDetailLoading(true);
+    try {
+      const res = await fetch(`/api/admin/campaigns/${id}`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setDetail(data.campaign);
+      }
+    } catch {
+      // silent
+    } finally {
+      setDetailLoading(false);
+    }
+  }, [authToken]);
+
+  const handleCreate = async () => {
+    if (!formName.trim() || !formSubject.trim()) return;
+    setCreating(true);
+    try {
+      const res = await fetch("/api/admin/campaigns", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ name: formName, subject: formSubject }),
+      });
+      if (res.ok) {
+        setFormName("");
+        setFormSubject("");
+        setShowForm(false);
+        await fetchCampaigns();
+      }
+    } catch {
+      // silent
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleRowClick = (id: string) => {
+    setSelectedId(id);
+    fetchDetail(id);
+  };
+
+  // Detail view
+  if (selectedId && detail) {
+    return (
+      <div className="space-y-6">
+        <Button variant="ghost" size="sm" onClick={() => { setSelectedId(null); setDetail(null); }}>
+          <ArrowLeft className="mr-1 h-4 w-4" /> Back to campaigns
+        </Button>
+
+        <div>
+          <h2 className="text-xl font-bold">{detail.name}</h2>
+          <p className="text-sm text-muted-foreground mt-1">{detail.subject}</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Status</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Badge className={cn("capitalize", detail.status === "sent" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800")}>
+                {detail.status}
+              </Badge>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Recipients</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">{detail.recipientCount}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Open Rate</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">{detail.openRate.toFixed(1)}%</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Grade</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Badge className={cn("text-lg px-3 py-1", gradeColor(detail.grade))}>{detail.grade}</Badge>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-sm text-muted-foreground italic">{campaignInsight(detail.grade, detail.status)}</p>
+          </CardContent>
+        </Card>
+
+        {detail.recipients.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Recipients</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="px-4 py-2 text-left font-medium">Name</th>
+                      <th className="px-4 py-2 text-left font-medium">Email</th>
+                      <th className="px-4 py-2 text-center font-medium">Opened</th>
+                      <th className="px-4 py-2 text-center font-medium">Clicked</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {detail.recipients.map((r) => (
+                      <tr key={r.id} className="hover:bg-muted/30">
+                        <td className="px-4 py-2">{r.name}</td>
+                        <td className="px-4 py-2 text-muted-foreground">{r.email}</td>
+                        <td className="px-4 py-2 text-center">
+                          {r.opened ? <Check className="inline h-4 w-4 text-green-600" /> : <X className="inline h-4 w-4 text-gray-300" />}
+                        </td>
+                        <td className="px-4 py-2 text-center">
+                          {r.clicked ? <Check className="inline h-4 w-4 text-green-600" /> : <X className="inline h-4 w-4 text-gray-300" />}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    );
+  }
+
+  if (selectedId && detailLoading) {
+    return <div className="py-12 text-center text-muted-foreground">Loading campaign details...</div>;
+  }
+
+  // List view
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Email Campaigns</h2>
+        <Button size="sm" onClick={() => setShowForm(!showForm)}>
+          <Plus className="mr-1.5 h-4 w-4" /> New Campaign
+        </Button>
+      </div>
+
+      {showForm && (
+        <Card>
+          <CardContent className="pt-4 space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="camp-name">Campaign Name</Label>
+                <Input id="camp-name" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g. Spring Newsletter" />
+              </div>
+              <div>
+                <Label htmlFor="camp-subject">Subject Line</Label>
+                <Input id="camp-subject" value={formSubject} onChange={(e) => setFormSubject(e.target.value)} placeholder="e.g. Your spring getaway awaits" />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={handleCreate} disabled={creating || !formName.trim() || !formSubject.trim()}>
+                {creating ? "Creating..." : "Create Campaign"}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => { setShowForm(false); setFormName(""); setFormSubject(""); }}>
+                Cancel
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="px-4 py-12 text-center text-muted-foreground">Loading campaigns...</div>
+          ) : campaigns.length === 0 ? (
+            <div className="px-4 py-12 text-center text-muted-foreground">No campaigns yet. Create your first one!</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="px-4 py-2 text-left font-medium">Name</th>
+                    <th className="px-4 py-2 text-left font-medium">Subject</th>
+                    <th className="px-4 py-2 text-center font-medium">Status</th>
+                    <th className="px-4 py-2 text-center font-medium">Sent</th>
+                    <th className="px-4 py-2 text-center font-medium">Recipients</th>
+                    <th className="px-4 py-2 text-center font-medium">Open %</th>
+                    <th className="px-4 py-2 text-center font-medium">Click %</th>
+                    <th className="px-4 py-2 text-center font-medium">Grade</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {campaigns.map((c) => (
+                    <tr key={c.id} onClick={() => handleRowClick(c.id)} className="cursor-pointer hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3 font-medium">{c.name}</td>
+                      <td className="px-4 py-3 text-muted-foreground max-w-[200px] truncate">{c.subject}</td>
+                      <td className="px-4 py-3 text-center">
+                        <Badge className={cn("capitalize", c.status === "sent" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800")}>
+                          {c.status}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-center text-muted-foreground">
+                        {c.sentAt ? formatDate(c.sentAt) : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-center">{c.recipientCount}</td>
+                      <td className="px-4 py-3 text-center">{c.recipientCount > 0 ? `${c.openRate.toFixed(1)}%` : "—"}</td>
+                      <td className="px-4 py-3 text-center">{c.recipientCount > 0 ? `${c.clickRate.toFixed(1)}%` : "—"}</td>
+                      <td className="px-4 py-3 text-center">
+                        <Badge className={cn(gradeColor(c.recipientCount > 0 ? c.grade : ""), c.recipientCount === 0 && "bg-gray-100 text-gray-500")}>
+                          {c.recipientCount > 0 ? c.grade : "—"}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // ─── Settings Tab ────────────────────────────────────────────────────────────
 
 function SettingsTab() {
@@ -1192,7 +1505,7 @@ function MaintenanceTab({ authToken }: { authToken: string }) {
 
 // ─── Main Admin Page ─────────────────────────────────────────────────────────
 
-type Tab = "reservations" | "pricing" | "maintenance" | "settings";
+type Tab = "reservations" | "pricing" | "maintenance" | "campaigns" | "settings";
 
 export default function AdminPage() {
   const [password, setPassword] = useState("");
@@ -1311,6 +1624,7 @@ export default function AdminPage() {
     { id: "reservations", label: "Reservations", icon: <CalendarDays className="h-4 w-4" /> },
     { id: "pricing", label: "Pricing", icon: <DollarSign className="h-4 w-4" /> },
     { id: "maintenance", label: "Maintenance", icon: <Wrench className="h-4 w-4" /> },
+    { id: "campaigns", label: "Campaigns", icon: <Send className="h-4 w-4" /> },
     { id: "settings", label: "Settings", icon: <Settings className="h-4 w-4" /> },
   ];
 
@@ -1373,6 +1687,7 @@ export default function AdminPage() {
         )}
         {activeTab === "pricing" && <PricingTab authToken={authToken} />}
         {activeTab === "maintenance" && <MaintenanceTab authToken={authToken} />}
+        {activeTab === "campaigns" && <CampaignsTab authToken={authToken} />}
         {activeTab === "settings" && <SettingsTab />}
       </main>
     </div>
