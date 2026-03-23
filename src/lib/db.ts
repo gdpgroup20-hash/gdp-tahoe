@@ -82,6 +82,16 @@ export async function initDb() {
   `;
   await sql`
     INSERT INTO maintenance_tasks (id, property, appliance, task, interval_days, last_completed, next_due, notes, created_at)
+    VALUES ('mt-seed-stair-treads', 'turquoise', 'Patio Staircase', 'Sand & re-stain stair treads', 365, '2025-03-22', '2026-05-01', 'Use Armstrong Clark Semi-Transparent oil-based stain. Sand with 80-grit first, clean with deck brightener, apply 2 coats (2nd coat while 1st is tacky). Add aluminum stair nosing strips on tread edges for grip + protection. Verticals/rails only need re-staining every 2 years.', '2026-03-22')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO maintenance_tasks (id, property, appliance, task, interval_days, last_completed, next_due, notes, created_at)
+    VALUES ('mt-seed-stair-rails', 'turquoise', 'Patio Staircase', 'Stain stair verticals & rails', 730, '2025-03-22', '2027-05-01', 'Armstrong Clark Semi-Transparent oil-based stain. Only needs re-staining every 2 years (less traffic/UV than treads).', '2026-03-22')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO maintenance_tasks (id, property, appliance, task, interval_days, last_completed, next_due, notes, created_at)
     VALUES ('mt-seed-landscaping-spring', 'both', 'Landscaping', 'Spring clean-up & irrigation activation', 365, '2025-05-08', '2026-05-01', 'A Thyme to Plant — Shana Behan 530-448-1440 shana@athymetoplanttahoe.com. Both 6229 NLB and 5233 Turquoise. Spring clean-up + pine needles + irrigation on. She emailed Mar 22 2026 touching base for this season.', '2026-03-22')
     ON CONFLICT (id) DO NOTHING
   `;
