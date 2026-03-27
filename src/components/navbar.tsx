@@ -17,6 +17,7 @@ const navLinks = [
   { label: "Elevation Estate", href: "/properties/elevation-estate" },
   { label: "Turquoise", href: "/properties/turquoise" },
   { label: "Journal", href: "/blog" },
+  { label: "FAQ", href: "/faq" },
 ];
 
 export function Navbar() {
