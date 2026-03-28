@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { GalleryModal } from "@/components/gallery-modal";
+import { InquiryModal } from "@/components/inquiry-modal";
 
 interface PropertyPageProps {
   params: Promise<{ slug: string }>;
@@ -356,6 +357,10 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
                   <p className="text-center text-xs text-muted-foreground">
                     No charge until your stay is confirmed
                   </p>
+
+                  <div className="pt-1">
+                    <InquiryModal propertyName={property.name} propertySlug={property.slug} />
+                  </div>
                 </div>
               </Card>
             </div>
