@@ -78,7 +78,7 @@ export function BookingForm({ property }: BookingFormProps) {
         );
         if (res.ok) {
           const data = await res.json();
-          const dates = (data.unavailableDates ?? []).map(
+          const dates = (data.blockedDates ?? data.unavailableDates ?? []).map(
             (d: string) => new Date(d)
           );
           setDisabledDates(dates);
