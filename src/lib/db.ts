@@ -286,16 +286,7 @@ export async function initDb() {
   `;
 
   // Concierge Eli
-  await sql`
-    INSERT INTO service_vendors (id, category_id, company_name, website, notes, created_at)
-    VALUES ('vendor-eli', 'cat-concierge', 'Eli (On-Site Concierge)', '', 'On-site concierge for Elevation Estate. Meets guests at check-in, provides house overview. Coordinates all concierge services: private chef, massage, chauffeur, babysitting, grocery delivery, gear rental, activity bookings.', '2026-03-27')
-    ON CONFLICT (id) DO NOTHING
-  `;
-  await sql`
-    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
-    VALUES ('contact-eli', 'vendor-eli', 'Eli', '', '530-386-5491', 'Concierge — voice + text')
-    ON CONFLICT (id) DO NOTHING
-  `;
+
 
   // Relax + Dining + Hike categories
   await sql`
