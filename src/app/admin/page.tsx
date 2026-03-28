@@ -1299,7 +1299,6 @@ function MaintenanceTab({ authToken }: { authToken: string }) {
     setFormAppliance(t.appliance);
     setFormTask(t.task);
     setFormNotes(t.notes);
-    // Reverse interval
     if (t.intervalDays % 30 === 0) {
       setFormIntervalNum(t.intervalDays / 30);
       setFormIntervalUnit("months");
@@ -1313,6 +1312,10 @@ function MaintenanceTab({ authToken }: { authToken: string }) {
     setFormLastCompleted(t.lastCompleted || "");
     setEditingId(t.id);
     setShowForm(true);
+    // Scroll to form
+    setTimeout(() => {
+      document.getElementById("maintenance-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
   };
 
   const sortByDue = (a: MaintenanceTask, b: MaintenanceTask) =>
@@ -1348,7 +1351,7 @@ function MaintenanceTab({ authToken }: { authToken: string }) {
 
       {/* Add/Edit Form */}
       {showForm && (
-        <Card>
+        <Card id="maintenance-form">
           <CardContent className="pt-6 space-y-4">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div>
