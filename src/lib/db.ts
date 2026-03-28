@@ -195,4 +195,99 @@ export async function initDb() {
     VALUES ('contact-michael', 'vendor-mxb', 'Michael Brown', 'mxbwindows@gmail.com', '530-448-9001', '')
     ON CONFLICT (id) DO NOTHING
   `;
+
+  // Guest recommendation categories + vendors
+  await sql`
+    INSERT INTO service_categories (id, name, sort_order) VALUES
+      ('cat-watersports', 'Water Sports', 10),
+      ('cat-chef', 'Private Chef / Catering', 11),
+      ('cat-adventure', 'Adventure & Tours', 12),
+      ('cat-concierge', 'Concierge', 13)
+    ON CONFLICT (id) DO NOTHING
+  `;
+
+  // North Tahoe Watersports
+  await sql`
+    INSERT INTO service_vendors (id, category_id, company_name, website, notes, created_at)
+    VALUES ('vendor-ntws', 'cat-watersports', 'North Tahoe Watersports Inc', 'northtahoewatersports.com', 'Parasailing, jet ski, kayak, SUP, pedal boats, boat rentals. 3 locations on North Shore. Hours: 9am-5pm Memorial Day–Labor Day. Grace recommends in every guest welcome email.', '2026-03-27')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-ntws-kingsbeach', 'vendor-ntws', 'Kings Beach Location', '', '530-546-9253', 'Kings Beach State Recreation Area, 8400 N Lake Blvd')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-ntws-tahoeciymarina', 'vendor-ntws', 'Tahoe City Marina Location', '', '530-583-7245', '700 N Lake Boulevard, Tahoe City')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-ntws-tahoeciyrental', 'vendor-ntws', 'Tahoe City Boat & Jet Ski Location', '', '530-583-9253', '120 Grove St, Tahoe City')
+    ON CONFLICT (id) DO NOTHING
+  `;
+
+  // Truckee River Rafting
+  await sql`
+    INSERT INTO service_vendors (id, category_id, company_name, website, notes, created_at)
+    VALUES ('vendor-trr', 'cat-watersports', 'Truckee River Rafting', 'truckeeriverrafting.com', 'Self-guided 5-mile raft float from Tahoe City to River Ranch Pond. Family-friendly, dogs welcome. Grace recommends in every guest welcome email. Season: summer.', '2026-03-27')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-trr-main', 'vendor-trr', 'Main Office', '', '530-583-1111', '175 W. River Rd., Tahoe City, CA 96145')
+    ON CONFLICT (id) DO NOTHING
+  `;
+
+  // Private Chefs
+  await sql`
+    INSERT INTO service_vendors (id, category_id, company_name, website, notes, created_at)
+    VALUES ('vendor-fedandfull', 'cat-chef', 'Fed and Full', 'fedandfull.com', 'Personal chef, Lake Tahoe. Organic, local ingredients. Experienced with large vacation rental groups. Grace''s top private chef recommendation. Instagram: @FED_AND_FULL', '2026-03-27')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-amy', 'vendor-fedandfull', 'Amy Lynne Power', 'amy@fedandfull.com', '925-683-0419', 'Chef / Owner')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_vendors (id, category_id, company_name, website, notes, created_at)
+    VALUES ('vendor-asuwish', 'cat-chef', 'As You Wish Catering', 'asuwishcatering.com', 'Tahoe-area catering. Note: website now redirects to Laughing Water Catering — may have rebranded. Verify contact still active. Grace recommended alongside Fed and Full.', '2026-03-27')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-mike-farrier', 'vendor-asuwish', 'Mike Farrier', '', '530-228-3111', 'Chef / Owner')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_vendors (id, category_id, company_name, website, notes, created_at)
+    VALUES ('vendor-tahoetapas', 'cat-chef', 'Tahoe Mountain Tapas', '', 'Private chef. Charges $200/hr for dinners. Standard 2-hr food service window. Miranda Worrell provided services for Elevation Aug 2025 guest stay.', '2026-03-27')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-miranda', 'vendor-tahoetapas', 'Miranda Worrell', 'tahoemountaintapas@gmail.com', '', 'Chef / Owner')
+    ON CONFLICT (id) DO NOTHING
+  `;
+
+  // Paul Hamilton Hang Gliding
+  await sql`
+    INSERT INTO service_vendors (id, category_id, company_name, website, notes, created_at)
+    VALUES ('vendor-paulhamilton', 'cat-adventure', 'Paul Hamilton Hang Gliding', '', 'FAA Certified Flight Instructor. 30+ yrs unpowered, 20+ powered hang gliding. Every flight is a hands-on lesson. Flies from Carson City Airport, NV. Morning flights only, weather permitting. Max student weight 250 lbs. Grace recommends in guest emails.', '2026-03-27')
+    ON CONFLICT (id) DO NOTHING
+  `;
+
+  // Concierge Eli
+  await sql`
+    INSERT INTO service_vendors (id, category_id, company_name, website, notes, created_at)
+    VALUES ('vendor-eli', 'cat-concierge', 'Eli (On-Site Concierge)', '', 'On-site concierge for Elevation Estate. Meets guests at check-in, provides house overview. Coordinates all concierge services: private chef, massage, chauffeur, babysitting, grocery delivery, gear rental, activity bookings.', '2026-03-27')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-eli', 'vendor-eli', 'Eli', '', '530-386-5491', 'Concierge — voice + text')
+    ON CONFLICT (id) DO NOTHING
+  `;
 }
