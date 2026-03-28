@@ -13,11 +13,13 @@ import {
   RefreshCw,
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
   Download,
   Plus,
   Trash2,
   DollarSign,
   CalendarDays,
+  Calendar,
   Settings,
   Check,
   X,
@@ -25,6 +27,7 @@ import {
   Wrench,
   Send,
   ArrowLeft,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -1503,9 +1506,436 @@ function MaintenanceTab({ authToken }: { authToken: string }) {
   );
 }
 
+// ─── Calendar Tab ───────────────────────────────────────────────────────────
+
+type PropertyFilter = "both" | "elevation" | "turquoise";
+
+interface CalendarEvent {
+  id: string;
+  property: "elevation" | "turquoise";
+  guestName: string;
+  source: "Direct" | "Airbnb" | "VRBO" | "Blocked";
+  checkIn: string; // YYYY-MM-DD
+  checkOut: string; // YYYY-MM-DD
+}
+
+function getMonthDays(year: number, month: number) {
+  const firstDay = new Date(year, month, 1);
+  const startOffset = firstDay.getDay(); // 0=Sun
+  const days: Date[] = [];
+  // fill from Sunday before month start
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(year, month, 1 - startOffset + i);
+    days.push(d);
+  }
+  return days;
+}
+
+function toDateStr(d: Date): string {
+  return d.toISOString().split("T")[0];
+}
+
+function CalendarTab({
+  bookings,
+  authToken,
+}: {
+  bookings: Booking[];
+  authToken: string;
+}) {
+  const today = new Date();
+  const [year, setYear] = useState(today.getFullYear());
+  const [month, setMonth] = useState(today.getMonth());
+  const [filter, setFilter] = useState<PropertyFilter>("both");
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [calLoading, setCalLoading] = useState(false);
+
+  const monthLabel = new Date(year, month).toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+
+  const prevMonth = () => {
+    if (month === 0) {
+      setMonth(11);
+      setYear(year - 1);
+    } else {
+      setMonth(month - 1);
+    }
+  };
+
+  const nextMonth = () => {
+    if (month === 11) {
+      setMonth(0);
+      setYear(year + 1);
+    } else {
+      setMonth(month + 1);
+    }
+  };
+
+  const goToday = () => {
+    setYear(today.getFullYear());
+    setMonth(today.getMonth());
+  };
+
+  // Build events from bookings + iCal blocked dates
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setCalLoading(true);
+      try {
+        // Fetch iCal blocked dates for both properties
+        const [elevRes, turqRes] = await Promise.all([
+          fetch("/api/availability?property=elevation-estate"),
+          fetch("/api/availability?property=turquoise"),
+        ]);
+        const elevData = elevRes.ok ? await elevRes.json() : { blockedDates: [] };
+        const turqData = turqRes.ok ? await turqRes.json() : { blockedDates: [] };
+
+        if (cancelled) return;
+
+        const elevBlocked: Set<string> = new Set(elevData.blockedDates ?? []);
+        const turqBlocked: Set<string> = new Set(turqData.blockedDates ?? []);
+
+        // Build events from confirmed bookings
+        const bookingEvents: CalendarEvent[] = bookings
+          .filter((b) => b.status === "confirmed")
+          .map((b) => ({
+            id: b.id,
+            property: b.propertySlug.includes("turquoise")
+              ? ("turquoise" as const)
+              : ("elevation" as const),
+            guestName: b.guestName?.split(" ")[0] || "Booked",
+            source: "Direct" as const,
+            checkIn: b.checkIn,
+            checkOut: b.checkOut,
+          }));
+
+        // Remove booking dates from blocked sets (avoid duplicates)
+        for (const ev of bookingEvents) {
+          const start = new Date(ev.checkIn);
+          const end = new Date(ev.checkOut);
+          const blocked = ev.property === "elevation" ? elevBlocked : turqBlocked;
+          for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
+            blocked.delete(toDateStr(d));
+          }
+        }
+
+        // Convert remaining blocked dates to contiguous events
+        const blockedToEvents = (
+          blocked: Set<string>,
+          property: "elevation" | "turquoise"
+        ): CalendarEvent[] => {
+          const sorted = Array.from(blocked).sort();
+          if (sorted.length === 0) return [];
+          const result: CalendarEvent[] = [];
+          let start = sorted[0];
+          let prev = sorted[0];
+          for (let i = 1; i <= sorted.length; i++) {
+            const curr = sorted[i];
+            const prevDate = new Date(prev);
+            const nextDay = new Date(prevDate);
+            nextDay.setDate(nextDay.getDate() + 1);
+            if (i < sorted.length && curr === toDateStr(nextDay)) {
+              prev = curr;
+            } else {
+              const endDate = new Date(prev);
+              endDate.setDate(endDate.getDate() + 1);
+              result.push({
+                id: `blocked-${property}-${start}`,
+                property,
+                guestName: "Airbnb/VRBO",
+                source: "Blocked",
+                checkIn: start,
+                checkOut: toDateStr(endDate),
+              });
+              if (i < sorted.length) {
+                start = curr;
+                prev = curr;
+              }
+            }
+          }
+          return result;
+        }
+
+        const allEvents = [
+          ...bookingEvents,
+          ...blockedToEvents(elevBlocked, "elevation"),
+          ...blockedToEvents(turqBlocked, "turquoise"),
+        ];
+
+        if (!cancelled) setEvents(allEvents);
+      } catch {
+        // silently fail
+      } finally {
+        if (!cancelled) setCalLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [bookings, month, year, authToken]);
+
+  const days = getMonthDays(year, month);
+  const todayStr = toDateStr(today);
+
+  // Filter events by property
+  const filtered = events.filter((ev) => {
+    if (filter === "both") return true;
+    return ev.property === filter;
+  });
+
+  // Get events that overlap a given date
+  function eventsForDate(dateStr: string): CalendarEvent[] {
+    return filtered.filter((ev) => dateStr >= ev.checkIn && dateStr < ev.checkOut);
+  }
+
+  const hasAnyEvents = filtered.length > 0;
+
+  // Mobile: build week rows
+  const weeks: Date[][] = [];
+  for (let i = 0; i < days.length; i += 7) {
+    weeks.push(days.slice(i, i + 7));
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={prevMonth}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <h2 className="text-lg font-semibold min-w-[180px] text-center">
+            {monthLabel}
+          </h2>
+          <Button variant="outline" size="icon" onClick={nextMonth}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="sm" onClick={goToday} className="ml-2">
+            Today
+          </Button>
+        </div>
+        <div className="flex items-center gap-1 rounded-lg border p-1">
+          {(
+            [
+              { id: "both", label: "Both" },
+              { id: "elevation", label: "Elevation Estate" },
+              { id: "turquoise", label: "Turquoise Tavern" },
+            ] as const
+          ).map((opt) => (
+            <button
+              key={opt.id}
+              onClick={() => setFilter(opt.id)}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                filter === opt.id
+                  ? "bg-[#0f1d3d] text-white"
+                  : "text-muted-foreground hover:bg-muted"
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Loading */}
+      {calLoading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      {/* Desktop Calendar Grid */}
+      {!calLoading && (
+        <>
+          <div className="hidden md:block rounded-lg border bg-white overflow-hidden">
+            {/* Day headers */}
+            <div className="grid grid-cols-7 border-b bg-gray-50">
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+                <div
+                  key={d}
+                  className="px-2 py-2 text-center text-xs font-medium text-muted-foreground"
+                >
+                  {d}
+                </div>
+              ))}
+            </div>
+            {/* Day cells */}
+            <div className="grid grid-cols-7">
+              {days.map((day, i) => {
+                const dateStr = toDateStr(day);
+                const isCurrentMonth = day.getMonth() === month;
+                const isToday = dateStr === todayStr;
+                const isPast = dateStr < todayStr;
+                const dayEvents = eventsForDate(dateStr);
+
+                return (
+                  <div
+                    key={i}
+                    className={cn(
+                      "min-h-[90px] border-b border-r p-1 relative",
+                      !isCurrentMonth && "bg-gray-50/50",
+                      isPast && isCurrentMonth && "bg-gray-50/30",
+                      isToday && "ring-2 ring-inset ring-[#0f1d3d]/30"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "text-xs font-medium",
+                        !isCurrentMonth && "text-muted-foreground/40",
+                        isPast && isCurrentMonth && "text-muted-foreground/60",
+                        isToday &&
+                          "inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#0f1d3d] text-white"
+                      )}
+                    >
+                      {day.getDate()}
+                    </span>
+                    <div className="mt-0.5 space-y-0.5">
+                      {dayEvents.slice(0, 3).map((ev) => {
+                        const isStart = dateStr === ev.checkIn;
+                        return (
+                          <div
+                            key={ev.id}
+                            title={`${ev.guestName} (${ev.source}) — ${ev.checkIn} to ${ev.checkOut}`}
+                            className={cn(
+                              "text-[10px] leading-tight px-1 py-0.5 truncate text-white",
+                              ev.source === "Blocked"
+                                ? "bg-gray-400 text-gray-50"
+                                : ev.property === "elevation"
+                                  ? "bg-[#0f1d3d]"
+                                  : "bg-[#0ea5e9]",
+                              isStart ? "rounded-l" : "",
+                              dateStr ===
+                                toDateStr(
+                                  new Date(
+                                    new Date(ev.checkOut).getTime() - 86400000
+                                  )
+                                )
+                                ? "rounded-r"
+                                : ""
+                            )}
+                          >
+                            {isStart
+                              ? `${ev.guestName} · ${ev.source}`
+                              : ""}
+                          </div>
+                        );
+                      })}
+                      {dayEvents.length > 3 && (
+                        <div className="text-[9px] text-muted-foreground px-1">
+                          +{dayEvents.length - 3} more
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Mobile: scrollable week list */}
+          <div className="md:hidden space-y-3">
+            {weeks.map((week, wi) => {
+              const weekHasEvents = week.some(
+                (d) => eventsForDate(toDateStr(d)).length > 0
+              );
+              return (
+                <div key={wi} className="rounded-lg border bg-white overflow-hidden">
+                  <div className="grid grid-cols-7 border-b bg-gray-50">
+                    {week.map((d, di) => {
+                      const ds = toDateStr(d);
+                      const isToday2 = ds === todayStr;
+                      return (
+                        <div key={di} className="text-center py-1">
+                          <div className="text-[10px] text-muted-foreground">
+                            {["S", "M", "T", "W", "T", "F", "S"][di]}
+                          </div>
+                          <div
+                            className={cn(
+                              "text-xs font-medium",
+                              isToday2 &&
+                                "inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#0f1d3d] text-white",
+                              d.getMonth() !== month &&
+                                "text-muted-foreground/40"
+                            )}
+                          >
+                            {d.getDate()}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {weekHasEvents && (
+                    <div className="p-2 space-y-1">
+                      {week.flatMap((d) => {
+                        const ds = toDateStr(d);
+                        return eventsForDate(ds)
+                          .filter((ev) => ev.checkIn === ds)
+                          .map((ev) => (
+                            <div
+                              key={ev.id}
+                              className={cn(
+                                "text-xs px-2 py-1 rounded text-white truncate",
+                                ev.source === "Blocked"
+                                  ? "bg-gray-400 text-gray-50"
+                                  : ev.property === "elevation"
+                                    ? "bg-[#0f1d3d]"
+                                    : "bg-[#0ea5e9]"
+                              )}
+                            >
+                              {ev.guestName} · {ev.source} ·{" "}
+                              {new Date(ev.checkIn).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                              })}
+                              {" - "}
+                              {new Date(ev.checkOut).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                              })}
+                            </div>
+                          ));
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Empty state */}
+          {!hasAnyEvents && !calLoading && (
+            <div className="text-center py-8 text-sm text-muted-foreground">
+              No bookings this month
+            </div>
+          )}
+
+          {/* Legend */}
+          <div className="flex flex-wrap gap-4 text-xs text-muted-foreground pt-2">
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block h-3 w-3 rounded-sm bg-[#0f1d3d]" />
+              Elevation Estate (direct)
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block h-3 w-3 rounded-sm bg-[#0ea5e9]" />
+              Turquoise Tavern (direct)
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block h-3 w-3 rounded-sm bg-gray-400" />
+              Blocked (Airbnb/VRBO)
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Admin Page ─────────────────────────────────────────────────────────
 
-type Tab = "reservations" | "pricing" | "maintenance" | "campaigns" | "settings";
+type Tab = "reservations" | "calendar" | "pricing" | "maintenance" | "campaigns" | "settings";
 
 export default function AdminPage() {
   const [password, setPassword] = useState("");
@@ -1622,6 +2052,7 @@ export default function AdminPage() {
   // --- Dashboard ---
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: "reservations", label: "Reservations", icon: <CalendarDays className="h-4 w-4" /> },
+    { id: "calendar", label: "Calendar", icon: <Calendar className="h-4 w-4" /> },
     { id: "pricing", label: "Pricing", icon: <DollarSign className="h-4 w-4" /> },
     { id: "maintenance", label: "Maintenance", icon: <Wrench className="h-4 w-4" /> },
     { id: "campaigns", label: "Campaigns", icon: <Send className="h-4 w-4" /> },
@@ -1684,6 +2115,9 @@ export default function AdminPage() {
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
         {activeTab === "reservations" && (
           <ReservationsTab bookings={bookings} loading={loading} />
+        )}
+        {activeTab === "calendar" && (
+          <CalendarTab bookings={bookings} authToken={authToken} />
         )}
         {activeTab === "pricing" && <PricingTab authToken={authToken} />}
         {activeTab === "maintenance" && <MaintenanceTab authToken={authToken} />}
