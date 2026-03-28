@@ -28,7 +28,8 @@ interface LocalBusiness {
 }
 
 export default async function RecommendationsPage() {
-  const categories = await getPublicCategories();
+  const categoriesRaw = await getPublicCategories();
+  const categories = [...categoriesRaw].sort((a, b) => a.name.localeCompare(b.name));
 
   // Build JSON-LD for vendors with websites
   const businesses: LocalBusiness[] = [];
@@ -84,7 +85,7 @@ export default async function RecommendationsPage() {
       {/* Categories */}
       <main className="mx-auto max-w-6xl px-6 lg:px-8 py-16 space-y-20">
         {categories.map((cat) => (
-          <section key={cat.id}>
+          <section key={cat.id} id={`cat-${cat.id}`}>
             {/* Section header */}
             <h2 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#0f1d3d]/50 mb-8">
               {cat.name}

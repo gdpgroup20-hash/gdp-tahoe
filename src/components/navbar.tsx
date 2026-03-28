@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Menu } from "lucide-react";
+import { Menu, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,8 +18,66 @@ const navLinks = [
   { label: "Turquoise", href: "/properties/turquoise" },
   { label: "Journal", href: "/blog" },
   { label: "FAQ", href: "/faq" },
-  { label: "Recommendations", href: "/recommendations" },
 ];
+
+interface RecCategory { id: string; name: string; }
+
+function RecommendationsDropdown({ scrolled }: { scrolled: boolean }) {
+  const [categories, setCategories] = useState<RecCategory[]>([]);
+  const [hover, setHover] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    fetch("/api/recommendations")
+      .then(r => r.json())
+      .then(data => {
+        const cats: RecCategory[] = (data || [])
+          .map((c: RecCategory) => ({ id: c.id, name: c.name }))
+          .sort((a: RecCategory, b: RecCategory) => a.name.localeCompare(b.name));
+        setCategories(cats);
+      })
+      .catch(() => {});
+  }, []);
+
+  const show = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setHover(true);
+  };
+  const hide = () => {
+    timeoutRef.current = setTimeout(() => setHover(false), 150);
+  };
+
+  return (
+    <div className="relative" onMouseEnter={show} onMouseLeave={hide}>
+      <Link
+        href="/recommendations"
+        className={cn(
+          "flex items-center gap-1 text-sm font-medium tracking-wide transition-colors duration-300 hover:opacity-70",
+          scrolled ? "text-[#0f1d3d]" : "text-white/90 hover:text-white"
+        )}
+      >
+        Recommendations
+        {categories.length > 0 && <ChevronDown className="h-3 w-3 opacity-60" />}
+      </Link>
+
+      {hover && categories.length > 0 && (
+        <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3 z-50">
+          <div className="bg-white shadow-xl border border-[#0f1d3d]/10 py-2 min-w-[200px]">
+            {categories.map(cat => (
+              <Link
+                key={cat.id}
+                href={`/recommendations#cat-${cat.id}`}
+                className="block px-4 py-2 text-sm text-[#0f1d3d]/80 hover:bg-[#0f1d3d]/5 hover:text-[#0f1d3d] transition-colors"
+              >
+                {cat.name}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -68,6 +126,7 @@ export function Navbar() {
               {link.label}
             </Link>
           ))}
+          <RecommendationsDropdown scrolled={scrolled} />
           <Link href="/book/elevation-estate">
             <Button
               variant="default"
@@ -113,6 +172,13 @@ export function Navbar() {
                     {link.label}
                   </Link>
                 ))}
+                <Link
+                  href="/recommendations"
+                  onClick={() => setOpen(false)}
+                  className="block py-3 text-sm font-medium tracking-wide text-[#0f1d3d]/80 transition-colors hover:text-[#0f1d3d] border-b border-border/50"
+                >
+                  Recommendations
+                </Link>
                 <Link href="/book/elevation-estate" onClick={() => setOpen(false)} className="mt-6">
                   <Button className="w-full rounded-none bg-[#0f1d3d] text-white text-xs font-semibold uppercase tracking-wide hover:bg-[#0f1d3d]/90">
                     Reserve
