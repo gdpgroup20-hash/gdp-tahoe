@@ -2362,9 +2362,9 @@ function ContactsTab({ authToken }: { authToken: string }) {
                               {vendor.website} <ExternalLink className="h-3 w-3" />
                             </a>
                           )}
-                          {vendor.notes && <p className="text-xs text-muted-foreground mt-1">{vendor.notes}</p>}
+                          {vendor.notes && <p className="text-xs text-muted-foreground mt-1 line-clamp-3">{vendor.notes}</p>}
                         </div>
-                        <button className="text-muted-foreground hover:text-red-600" onClick={() => removeVendor(vendor.id)}>
+                        <button type="button" className="text-muted-foreground hover:text-red-600 shrink-0 p-1" onClick={(e) => { e.stopPropagation(); removeVendor(vendor.id); }}>
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
@@ -2384,7 +2384,7 @@ function ContactsTab({ authToken }: { authToken: string }) {
                               )}
                               {contact.role && <Badge variant="secondary" className="text-[10px] h-5">{contact.role}</Badge>}
                             </div>
-                            <button className="text-muted-foreground hover:text-red-600 ml-2 shrink-0" onClick={() => removeContact(contact.id)}>
+                            <button type="button" className="text-muted-foreground hover:text-red-600 ml-2 shrink-0 p-1" onClick={(e) => { e.stopPropagation(); removeContact(contact.id); }}>
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
                           </div>
