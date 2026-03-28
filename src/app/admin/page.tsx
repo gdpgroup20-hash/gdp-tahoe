@@ -812,6 +812,7 @@ interface CampaignData {
   sentAt: string | null;
   recipientCount: number;
   createdAt: string;
+  body: string;
   openRate: number;
   clickRate: number;
   grade: string;
@@ -848,6 +849,85 @@ function campaignInsight(grade: string, status: string): string {
     case "F": return "Very low engagement. Review your recipient list quality and sending time.";
     default: return "No engagement data available yet.";
   }
+}
+
+const STAYCATION_DRAFT = `Hi [First Name],
+
+We have some exciting news — Elevation Estate will be featured on an upcoming episode of Staycation, the show that spotlights the world's most extraordinary private homes.
+
+[VIDEO EMBED — paste your video link here]
+
+Watching it back, we were reminded of what makes this place so unique — the 270° views, the pier at sunrise, the way the light hits the lake from the cocktail deck at golden hour. If you've stayed with us before, you know exactly what we mean.
+
+As a past guest, we'd like to offer you 10% off any direct booking at Elevation Estate or Turquoise Tavern — just our way of saying we'd love to have you back.
+
+Book before May 1st to lock in your discount → staygdptahoe.com
+
+Use code STAYCATION10 at checkout, or simply reply to this email and we'll apply it manually.
+
+Summer weekends are booking fast — if you have dates in mind, now's the time.
+
+Talk soon,
+Grace & Andrew
+GDP Tahoe
+gdpgroup20@gmail.com | 603-359-9227`;
+
+function DraftEmailEditor({ campaign, authToken, onSaved }: { campaign: CampaignData; authToken: string; onSaved: () => void }) {
+  const [subject, setSubject] = useState(campaign.subject);
+  const [body, setBody] = useState(campaign.body || STAYCATION_DRAFT);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    const res = await fetch("/api/admin/campaigns", {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ id: campaign.id, subject, body }),
+    });
+    setSaving(false);
+    if (res.ok) {
+      setSaved(true);
+      onSaved();
+      setTimeout(() => setSaved(false), 2000);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center justify-between">
+          <span>Email Draft</span>
+          <div className="flex items-center gap-2">
+            {saved && <span className="text-xs text-green-600">Saved ✓</span>}
+            <Button size="sm" className="bg-[#0f1d3d] hover:bg-[#1a2d5c]" onClick={handleSave} disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Draft"}
+            </Button>
+          </div>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-1.5">
+          <Label className="text-xs">Subject Line</Label>
+          <input
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-[#0f1d3d]"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Email Body</Label>
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={20}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono ring-offset-background focus:outline-none focus:ring-2 focus:ring-[#0f1d3d] resize-y"
+          />
+          <p className="text-xs text-muted-foreground">Plain text — use [First Name] for personalization. When you send, we&apos;ll embed tracking links automatically.</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 function CampaignsTab({ authToken }: { authToken: string }) {
@@ -980,6 +1060,11 @@ function CampaignsTab({ authToken }: { authToken: string }) {
             <p className="text-sm text-muted-foreground italic">{campaignInsight(detail.grade, detail.status)}</p>
           </CardContent>
         </Card>
+
+        {/* Draft email editor */}
+        {detail.status === "draft" && (
+          <DraftEmailEditor campaign={detail} authToken={authToken} onSaved={() => fetchDetail(detail.id)} />
+        )}
 
         {detail.recipients.length > 0 && (
           <Card>

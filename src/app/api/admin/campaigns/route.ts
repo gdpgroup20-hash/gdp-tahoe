@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCampaigns, getCampaignWithStats, createCampaign } from "@/lib/campaigns";
+import { getCampaigns, getCampaignWithStats, createCampaign, updateCampaignDraft } from "@/lib/campaigns";
 
 export const dynamic = "force-dynamic";
 
@@ -46,5 +46,22 @@ export async function POST(request: Request) {
     console.error("Error creating campaign:", error);
     const msg = error instanceof Error ? error.message : String(error);
     return NextResponse.json({ error: `Failed to create campaign: ${msg}` }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ") || authHeader.replace("Bearer ", "") !== process.env.ADMIN_PASSWORD) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  try {
+    const { id, name, subject, body } = await request.json();
+    if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+    await updateCampaignDraft(id, { name, subject, body });
+    const campaign = await getCampaignWithStats(id);
+    return NextResponse.json({ campaign });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

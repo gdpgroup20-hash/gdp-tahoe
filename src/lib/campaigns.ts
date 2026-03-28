@@ -8,6 +8,7 @@ export interface Campaign {
   sentAt: string | null;
   recipientCount: number;
   createdAt: string;
+  body: string;
 }
 
 export interface CampaignRecipient {
@@ -37,7 +38,16 @@ function mapCampaign(row: Record<string, unknown>): Campaign {
     sentAt: (row.sent_at as string) || null,
     recipientCount: Number(row.recipient_count),
     createdAt: row.created_at as string,
+    body: (row.body as string) || "",
   };
+}
+
+export async function updateCampaignDraft(id: string, data: { name?: string; subject?: string; body?: string }): Promise<void> {
+  await initDb();
+  const sql = getDb();
+  if (data.name !== undefined) await sql`UPDATE email_campaigns SET name = ${data.name} WHERE id = ${id}`;
+  if (data.subject !== undefined) await sql`UPDATE email_campaigns SET subject = ${data.subject} WHERE id = ${id}`;
+  if (data.body !== undefined) await sql`UPDATE email_campaigns SET body = ${data.body} WHERE id = ${id}`;
 }
 
 function mapRecipient(row: Record<string, unknown>): CampaignRecipient {
