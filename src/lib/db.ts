@@ -296,4 +296,106 @@ export async function initDb() {
     VALUES ('contact-eli', 'vendor-eli', 'Eli', '', '530-386-5491', 'Concierge — voice + text')
     ON CONFLICT (id) DO NOTHING
   `;
+
+  // Relax category + vendors
+  await sql`
+    INSERT INTO service_categories (id, name, sort_order, is_public) VALUES
+      ('cat-relax', 'Relax', 20, 1),
+      ('cat-dining', 'Lakeside Dining', 21, 1)
+    ON CONFLICT (id) DO NOTHING
+  `;
+
+  await sql`
+    INSERT INTO service_vendors (id, category_id, company_name, website, notes, created_at)
+    VALUES ('vendor-edgewood', 'cat-relax', 'Edgewood Resort & Spa', 'edgewoodtahoe.com', 'Forbes Travel Guide 4-Star rated spa on the South Shore of Lake Tahoe. Exclusive gemstone rituals, holistic massages using locally-sourced stones such as Smoky Quartz. Full resort with lodging, golf, and fine dining.', '2026-03-28')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-edgewood-res', 'vendor-edgewood', 'Reservations', '', '(888) 881-8659', 'Lodge Reservations')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-edgewood-conc', 'vendor-edgewood', 'Concierge', '', '(844) 548-3446', 'Concierge Services')
+    ON CONFLICT (id) DO NOTHING
+  `;
+
+  await sql`
+    INSERT INTO service_vendors (id, category_id, company_name, website, notes, created_at)
+    VALUES ('vendor-sierrahotsprings', 'cat-relax', 'Sierra Hot Springs', 'sierrahotsprings.org', 'Natural hot springs resort in Sierraville, ~45 min from Tahoe. Hot Pool (105-110°) in a geodesic dome with stained glass skylights. Warm Pool (98-100°), Meditation Pool (outdoor, rock tile), and private Phoenix Baths. Massage available. Clothing optional. Open Wed–Sun for reservations.', '2026-03-28')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-sierrahs-main', 'vendor-sierrahotsprings', 'Reservations', 'info@sierrahotsprings.org', '530-994-3773', '521 Campbell Hot Springs Rd, Sierraville, CA 96126 — Wed–Sun 9:30am–5pm')
+    ON CONFLICT (id) DO NOTHING
+  `;
+
+  // Lakeside Dining vendors
+  await sql`
+    INSERT INTO service_vendors (id, category_id, company_name, website, notes, created_at)
+    VALUES ('vendor-garwoods', 'cat-dining', 'Gar Woods Grill & Pier', 'garwoods.com', 'The most iconic restaurant on the North Shore. Right on the lake in Carnelian Bay — 5-min walk from Turquoise Tavern. Famous for the Wet Woody cocktail. Lakeside patio, casual-upscale. 5000 N Lake Blvd, Carnelian Bay.', '2026-03-28')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-garwoods-main', 'vendor-garwoods', 'Reservations', '', '530-546-3366', '5000 North Lake Blvd, Carnelian Bay, CA')
+    ON CONFLICT (id) DO NOTHING
+  `;
+
+  await sql`
+    INSERT INTO service_vendors (id, category_id, company_name, website, notes, created_at)
+    VALUES ('vendor-chambers', 'cat-dining', 'Chambers Landing Bar & Grill', 'chamberslanding.com', 'Historic lakeside bar and grill in Tahoma on the West Shore. Famous for the Chambers Punch. One of Tahoe''s most beloved summer spots with a stunning pier over the lake.', '2026-03-28')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-chambers-main', 'vendor-chambers', 'Restaurant', '', '(530) 270-9515', '600 W. Lake Blvd., Tahoma, CA')
+    ON CONFLICT (id) DO NOTHING
+  `;
+
+  await sql`
+    INSERT INTO service_vendors (id, category_id, company_name, website, notes, created_at)
+    VALUES ('vendor-jakes', 'cat-dining', 'Jakes on the Lake', 'jakestahoe.com', 'Lakeside dining in Tahoe City with stunning views, fresh seafood and cocktails. Casual-upscale. Great for dinner with a view of the lake.', '2026-03-28')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-jakes-main', 'vendor-jakes', 'Restaurant', '', '(530) 583-0188', '780 N Lake Blvd, Tahoe City, CA')
+    ON CONFLICT (id) DO NOTHING
+  `;
+
+  await sql`
+    INSERT INTO service_vendors (id, category_id, company_name, website, notes, created_at)
+    VALUES ('vendor-christyhill', 'cat-dining', 'Christy Hill', 'christyhill.com', 'Fine dining overlooking Lake Tahoe in Tahoe City. One of North Tahoe''s premier upscale restaurants. Mediterranean-inspired menu, excellent wine list, romantic atmosphere.', '2026-03-28')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-christyhill-main', 'vendor-christyhill', 'Restaurant', '', '(530) 583-8551', '115 Grove St, Tahoe City, CA')
+    ON CONFLICT (id) DO NOTHING
+  `;
+
+  await sql`
+    INSERT INTO service_vendors (id, category_id, company_name, website, notes, created_at)
+    VALUES ('vendor-sunnyside', 'cat-dining', 'Sunnyside Restaurant & Lodge', 'sunnysidelodge.com', 'Classic lakeside lodge restaurant on the West Shore. One of Tahoe''s most popular spots for lunch and dinner on the water. Known for the best deck on the lake.', '2026-03-28')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-sunnyside-main', 'vendor-sunnyside', 'Restaurant', '', '(530) 583-7200', '1850 West Lake Blvd, Tahoe City, CA')
+    ON CONFLICT (id) DO NOTHING
+  `;
+
+  await sql`
+    INSERT INTO service_vendors (id, category_id, company_name, website, notes, created_at)
+    VALUES ('vendor-westshore', 'cat-dining', 'West Shore Cafe & Inn', 'westshorecafe.com', 'Waterfront dining in Homewood on the West Shore. Fresh, locally-sourced cuisine with a beautiful lakeside setting. Perfect for a special dinner or lazy lakeside lunch.', '2026-03-28')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-westshore-main', 'vendor-westshore', 'Restaurant', '', '(530) 525-5200', '5160 West Lake Blvd., Homewood, CA')
+    ON CONFLICT (id) DO NOTHING
+  `;
 }
