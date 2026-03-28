@@ -31,6 +31,7 @@ import {
   Phone,
   ExternalLink,
   UserPlus,
+  Receipt,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -2448,9 +2449,389 @@ function ContactsTab({ authToken }: { authToken: string }) {
   );
 }
 
+// ─── Expenses Tab ───────────────────────────────────────────────────────────
+
+interface ExpenseRow {
+  id: string;
+  vendor: string;
+  amount: number;
+  date: string;
+  category: string;
+  property: string;
+  notes: string;
+  subject: string;
+  gmailId: string;
+  createdAt: string;
+}
+
+const EXPENSE_PROPERTY_OPTIONS = ["", "Elevation Estate", "Turquoise Tavern"];
+
+function ExpensesTab({ authToken }: { authToken: string }) {
+  const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<Partial<ExpenseRow>>({});
+  const [page, setPage] = useState(0);
+  const [yearFilter, setYearFilter] = useState<string>("All Time");
+  const [categoryFilter, setCategoryFilter] = useState<string>("All");
+  const [propertyFilter, setPropertyFilter] = useState<string>("All");
+  const [search, setSearch] = useState("");
+  const PAGE_SIZE = 50;
+
+  const fetchExpenses = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/expenses", {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setExpenses(data.expenses ?? []);
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setLoading(false);
+    }
+  }, [authToken]);
+
+  useEffect(() => {
+    fetchExpenses();
+  }, [fetchExpenses]);
+
+  // Derived data
+  const years = Array.from(new Set(expenses.map((e) => e.date.substring(0, 4)))).sort().reverse();
+  const categories = Array.from(new Set(expenses.map((e) => e.category))).sort();
+
+  const filtered = expenses.filter((e) => {
+    if (yearFilter !== "All Time" && !e.date.startsWith(yearFilter)) return false;
+    if (categoryFilter !== "All" && e.category !== categoryFilter) return false;
+    if (propertyFilter !== "All" && e.property !== propertyFilter) return false;
+    if (search && !e.vendor.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+
+  const totalSpend = filtered.reduce((s, e) => s + e.amount, 0);
+  const txCount = filtered.length;
+  const largest = filtered.length > 0 ? Math.max(...filtered.map((e) => e.amount)) : 0;
+
+  // Bar chart data — spend by category for selected year
+  const spendByCategory: Record<string, number> = {};
+  for (const e of filtered) {
+    spendByCategory[e.category] = (spendByCategory[e.category] || 0) + e.amount;
+  }
+  const chartEntries = Object.entries(spendByCategory).sort((a, b) => b[1] - a[1]);
+  const maxSpend = chartEntries.length > 0 ? chartEntries[0][1] : 1;
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  // Inline edit handlers
+  const startEdit = (e: ExpenseRow) => {
+    setEditingId(e.id);
+    setEditDraft({ category: e.category, property: e.property, notes: e.notes });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditDraft({});
+  };
+
+  const saveEdit = async (id: string) => {
+    try {
+      await fetch(`/api/admin/expenses/${id}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify(editDraft),
+      });
+      setEditingId(null);
+      setEditDraft({});
+      fetchExpenses();
+    } catch {
+      // silently fail
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await fetch(`/api/admin/expenses/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      fetchExpenses();
+    } catch {
+      // silently fail
+    }
+  };
+
+  // CSV export
+  const exportCSV = () => {
+    const headers = ["Date", "Vendor", "Amount", "Category", "Property", "Notes", "Subject", "Gmail ID"];
+    const rows = filtered.map((e) => [
+      e.date,
+      `"${e.vendor.replace(/"/g, '""')}"`,
+      e.amount.toString(),
+      e.category,
+      e.property,
+      `"${(e.notes || "").replace(/"/g, '""')}"`,
+      `"${(e.subject || "").replace(/"/g, '""')}"`,
+      e.gmailId,
+    ]);
+    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `gdp-tahoe-expenses-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Analytics */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-[#0f1d3d]">Expense Analytics</h2>
+          <select
+            value={yearFilter}
+            onChange={(e) => { setYearFilter(e.target.value); setPage(0); }}
+            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm"
+          >
+            <option>All Time</option>
+            {years.map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Stat cards */}
+        <div className="grid grid-cols-3 gap-4">
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm text-muted-foreground">Total Expenses</p>
+              <p className="text-2xl font-bold text-[#0f1d3d]">${totalSpend.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm text-muted-foreground"># Transactions</p>
+              <p className="text-2xl font-bold text-[#0f1d3d]">{txCount}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm text-muted-foreground">Largest Expense</p>
+              <p className="text-2xl font-bold text-[#0f1d3d]">${largest.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Bar chart */}
+        {chartEntries.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Spend by Category</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {chartEntries.map(([cat, amount], i) => (
+                <div key={cat} className="flex items-center gap-3">
+                  <span className="w-36 truncate text-sm font-medium">{cat}</span>
+                  <div className="flex-1">
+                    <div
+                      className="h-6 rounded"
+                      style={{
+                        width: `${Math.max(2, (amount / maxSpend) * 100)}%`,
+                        backgroundColor: "#0f1d3d",
+                        opacity: 1 - i * 0.08,
+                      }}
+                    />
+                  </div>
+                  <span className="w-28 text-right text-sm font-medium tabular-nums">
+                    ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      <Separator />
+
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3">
+        <select
+          value={yearFilter}
+          onChange={(e) => { setYearFilter(e.target.value); setPage(0); }}
+          className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm"
+        >
+          <option>All Time</option>
+          {years.map((y) => (
+            <option key={y} value={y}>{y}</option>
+          ))}
+        </select>
+        <select
+          value={categoryFilter}
+          onChange={(e) => { setCategoryFilter(e.target.value); setPage(0); }}
+          className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm"
+        >
+          <option value="All">All Categories</option>
+          {categories.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+        <select
+          value={propertyFilter}
+          onChange={(e) => { setPropertyFilter(e.target.value); setPage(0); }}
+          className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm"
+        >
+          <option value="All">All Properties</option>
+          <option value="Elevation Estate">Elevation Estate</option>
+          <option value="Turquoise Tavern">Turquoise Tavern</option>
+          <option value="">No Property</option>
+        </select>
+        <Input
+          placeholder="Search vendor..."
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+          className="w-48"
+        />
+        <div className="ml-auto">
+          <Button variant="outline" size="sm" onClick={exportCSV}>
+            <Download className="mr-1 h-4 w-4" />
+            Export CSV
+          </Button>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto rounded-lg border bg-white">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <th className="px-4 py-3">Date</th>
+              <th className="px-4 py-3">Vendor</th>
+              <th className="px-4 py-3 text-right">Amount</th>
+              <th className="px-4 py-3">Category</th>
+              <th className="px-4 py-3">Property</th>
+              <th className="px-4 py-3">Notes</th>
+              <th className="px-4 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginated.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
+                  No expenses found.
+                </td>
+              </tr>
+            )}
+            {paginated.map((e) => (
+              <tr key={e.id} className="border-b last:border-0 hover:bg-gray-50/50">
+                <td className="whitespace-nowrap px-4 py-2">{e.date}</td>
+                <td className="px-4 py-2 font-medium">{e.vendor}</td>
+                <td className="whitespace-nowrap px-4 py-2 text-right tabular-nums">
+                  ${e.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </td>
+                {editingId === e.id ? (
+                  <>
+                    <td className="px-4 py-2">
+                      <select
+                        value={editDraft.category ?? e.category}
+                        onChange={(ev) => setEditDraft((d) => ({ ...d, category: ev.target.value }))}
+                        className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                      >
+                        {[...categories, "Uncategorized"].filter((v, i, a) => a.indexOf(v) === i).map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-4 py-2">
+                      <select
+                        value={editDraft.property ?? e.property}
+                        onChange={(ev) => setEditDraft((d) => ({ ...d, property: ev.target.value }))}
+                        className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                      >
+                        {EXPENSE_PROPERTY_OPTIONS.map((p) => (
+                          <option key={p} value={p}>{p || "(none)"}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-4 py-2">
+                      <Input
+                        value={editDraft.notes ?? e.notes}
+                        onChange={(ev) => setEditDraft((d) => ({ ...d, notes: ev.target.value }))}
+                        className="h-8 text-sm"
+                      />
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => saveEdit(e.id)}>
+                          <Check className="h-3.5 w-3.5 text-green-600" />
+                        </Button>
+                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={cancelEdit}>
+                          <X className="h-3.5 w-3.5 text-red-600" />
+                        </Button>
+                      </div>
+                    </td>
+                  </>
+                ) : (
+                  <>
+                    <td className="px-4 py-2">
+                      <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">{e.category}</Badge>
+                    </td>
+                    <td className="px-4 py-2 text-muted-foreground">{e.property || "—"}</td>
+                    <td className="max-w-[200px] truncate px-4 py-2 text-muted-foreground">{e.notes || "—"}</td>
+                    <td className="px-4 py-2 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEdit(e)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(e.id)}>
+                          <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                        </Button>
+                      </div>
+                    </td>
+                  </>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
+          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>
+              <ChevronLeft className="mr-1 h-4 w-4" /> Prev
+            </Button>
+            <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>
+              Next <ChevronRight className="ml-1 h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Admin Page ─────────────────────────────────────────────────────────
 
-type Tab = "reservations" | "calendar" | "pricing" | "maintenance" | "campaigns" | "contacts" | "settings";
+type Tab = "reservations" | "calendar" | "pricing" | "maintenance" | "expenses" | "campaigns" | "contacts" | "settings";
 
 export default function AdminPage() {
   const [password, setPassword] = useState("");
@@ -2570,6 +2951,7 @@ export default function AdminPage() {
     { id: "calendar", label: "Calendar", icon: <Calendar className="h-4 w-4" /> },
     { id: "pricing", label: "Pricing", icon: <DollarSign className="h-4 w-4" /> },
     { id: "maintenance", label: "Maintenance", icon: <Wrench className="h-4 w-4" /> },
+    { id: "expenses", label: "Expenses", icon: <Receipt className="h-4 w-4" /> },
     { id: "campaigns", label: "Campaigns", icon: <Send className="h-4 w-4" /> },
     { id: "contacts", label: "Contacts", icon: <Phone className="h-4 w-4" /> },
     { id: "settings", label: "Settings", icon: <Settings className="h-4 w-4" /> },
@@ -2637,6 +3019,7 @@ export default function AdminPage() {
         )}
         {activeTab === "pricing" && <PricingTab authToken={authToken} />}
         {activeTab === "maintenance" && <MaintenanceTab authToken={authToken} />}
+        {activeTab === "expenses" && <ExpensesTab authToken={authToken} />}
         {activeTab === "campaigns" && <CampaignsTab authToken={authToken} />}
         {activeTab === "contacts" && <ContactsTab authToken={authToken} />}
         {activeTab === "settings" && <SettingsTab />}

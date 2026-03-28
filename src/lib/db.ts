@@ -399,6 +399,22 @@ export async function initDb() {
     ON CONFLICT (id) DO NOTHING
   `;
 
+  // ─── Expenses ───────────────────────────────────────────────────────────────
+  await sql`
+    CREATE TABLE IF NOT EXISTS expenses (
+      id TEXT PRIMARY KEY,
+      vendor TEXT NOT NULL,
+      amount NUMERIC NOT NULL,
+      date TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT 'Uncategorized',
+      property TEXT NOT NULL DEFAULT '',
+      notes TEXT NOT NULL DEFAULT '',
+      subject TEXT NOT NULL DEFAULT '',
+      gmail_id TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL
+    )
+  `;
+
   await sql`
     INSERT INTO service_vendors (id, category_id, company_name, website, notes, created_at)
     VALUES ('vendor-edgewood', 'cat-relax', 'Edgewood Resort & Spa', 'edgewoodtahoe.com', 'Forbes Travel Guide 4-Star rated spa on the South Shore of Lake Tahoe. Exclusive gemstone rituals, holistic massages using locally-sourced stones such as Smoky Quartz. Full resort with lodging, golf, and fine dining.', '2026-03-28')
