@@ -1,46 +1,89 @@
 import { getBookingsByProperty } from "./bookings";
 import { getPricingConfig, getSeasonalRate } from "./pricing";
 
-// Static blocked dates for demo purposes.
-// In production, these would come from iCal feeds (Airbnb, VRBO, etc.)
-const STATIC_BLOCKED_DATES: Record<string, string[]> = {
-  "elevation-estate": [
-    // Example: block some dates for demo
-  ],
-  turquoise: [],
-};
-
 export interface BlockedDateRange {
   start: string;
   end: string;
   source: string;
 }
 
+// iCal feed URLs from Lodgify (syncs Airbnb + VRBO bookings)
+const ICAL_FEEDS: Record<string, string[]> = {
+  "elevation-estate": [
+    process.env.ICAL_ELEVATION_URL_1 || "https://www.lodgify.com/6cf30c20-e52f-42b8-b2ad-d8e94108a3a5.ics",
+  ],
+  turquoise: [
+    process.env.ICAL_TURQUOISE_URL_1 || "https://www.lodgify.com/f946c691-e7f0-4fd2-b6d1-acbfd1b40617.ics",
+  ],
+};
+
 /**
- * Parse iCal feed URL and extract blocked date ranges.
- * In production, replace the static dates with actual iCal parsing:
- *
- * import ical from 'node-ical';
- * const events = await ical.async.fromURL(icalUrl);
+ * Parse iCal text and extract all blocked date ranges.
+ * Handles DTSTART/DTEND with VALUE=DATE and datetime formats.
  */
+function parseIcal(text: string): { start: Date; end: Date }[] {
+  const ranges: { start: Date; end: Date }[] = [];
+  const events = text.split("BEGIN:VEVENT");
+  for (const event of events.slice(1)) {
+    const startMatch = event.match(/DTSTART(?:;[^:]+)?:(\d{8})/);
+    const endMatch = event.match(/DTEND(?:;[^:]+)?:(\d{8})/);
+    if (startMatch && endMatch) {
+      const parseDate = (s: string) =>
+        new Date(`${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`);
+      ranges.push({ start: parseDate(startMatch[1]), end: parseDate(endMatch[1]) });
+    }
+  }
+  return ranges;
+}
+
+/**
+ * Fetch iCal feeds for a property and return blocked dates.
+ */
+async function getIcalBlockedDates(propertySlug: string): Promise<Set<string>> {
+  const blocked = new Set<string>();
+  const feeds = ICAL_FEEDS[propertySlug] || [];
+
+  for (const url of feeds) {
+    try {
+      const res = await fetch(url, { next: { revalidate: 3600 } }); // cache 1 hour
+      if (!res.ok) continue;
+      const text = await res.text();
+      const ranges = parseIcal(text);
+      for (const { start, end } of ranges) {
+        const current = new Date(start);
+        while (current < end) {
+          blocked.add(current.toISOString().split("T")[0]);
+          current.setDate(current.getDate() + 1);
+        }
+      }
+    } catch {
+      // Silently fail — calendar will show dates as available if feed is unreachable
+    }
+  }
+  return blocked;
+}
+
 export async function getBlockedDates(
   propertySlug: string
 ): Promise<string[]> {
-  const blocked = new Set<string>(
-    STATIC_BLOCKED_DATES[propertySlug] || []
-  );
+  // Fetch from iCal feeds (Lodgify syncs Airbnb + VRBO)
+  const blocked = await getIcalBlockedDates(propertySlug);
 
-  // Add dates from confirmed bookings
-  const bookings = await getBookingsByProperty(propertySlug);
-  for (const booking of bookings) {
-    if (booking.status === "cancelled") continue;
-    const start = new Date(booking.checkIn);
-    const end = new Date(booking.checkOut);
-    const current = new Date(start);
-    while (current < end) {
-      blocked.add(current.toISOString().split("T")[0]);
-      current.setDate(current.getDate() + 1);
+  // Also add dates from direct bookings on staygdptahoe.com
+  try {
+    const bookings = await getBookingsByProperty(propertySlug);
+    for (const booking of bookings) {
+      if (booking.status === "cancelled") continue;
+      const start = new Date(booking.checkIn);
+      const end = new Date(booking.checkOut);
+      const current = new Date(start);
+      while (current < end) {
+        blocked.add(current.toISOString().split("T")[0]);
+        current.setDate(current.getDate() + 1);
+      }
     }
+  } catch {
+    // DB unavailable — iCal data still works
   }
 
   return Array.from(blocked).sort();
