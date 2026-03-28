@@ -2794,7 +2794,21 @@ function ExpensesTab({ authToken }: { authToken: string }) {
                       ) : (
                         <select
                           value={editDraft.category ?? e.category}
-                          onChange={(ev) => setEditDraft((d) => ({ ...d, category: ev.target.value }))}
+                          onChange={(ev) => {
+                            const val = ev.target.value;
+                            if (val === "__new__") {
+                              setEditDraft((d) => ({ ...d, category: "__new__" }));
+                            } else {
+                              const updated = { ...editDraft, category: val };
+                              setEditDraft(updated);
+                              // Auto-save immediately
+                              fetch(`/api/admin/expenses/${e.id}`, {
+                                method: "PATCH",
+                                headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+                                body: JSON.stringify(updated),
+                              }).then(() => { setEditingId(null); setEditDraft({}); fetchExpenses(); });
+                            }
+                          }}
                           className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
                           autoFocus
                         >
@@ -2808,7 +2822,15 @@ function ExpensesTab({ authToken }: { authToken: string }) {
                     <td className="px-4 py-2">
                       <select
                         value={editDraft.property ?? e.property}
-                        onChange={(ev) => setEditDraft((d) => ({ ...d, property: ev.target.value }))}
+                        onChange={(ev) => {
+                          const updated = { ...editDraft, property: ev.target.value };
+                          setEditDraft(updated);
+                          fetch(`/api/admin/expenses/${e.id}`, {
+                            method: "PATCH",
+                            headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+                            body: JSON.stringify(updated),
+                          }).then(() => { setEditingId(null); setEditDraft({}); fetchExpenses(); });
+                        }}
                         className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
                       >
                         {EXPENSE_PROPERTY_OPTIONS.map((p) => (
@@ -2820,18 +2842,25 @@ function ExpensesTab({ authToken }: { authToken: string }) {
                       <Input
                         value={editDraft.notes ?? e.notes}
                         onChange={(ev) => setEditDraft((d) => ({ ...d, notes: ev.target.value }))}
+                        onBlur={(ev) => {
+                          const updated = { ...editDraft, notes: ev.target.value };
+                          fetch(`/api/admin/expenses/${e.id}`, {
+                            method: "PATCH",
+                            headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+                            body: JSON.stringify(updated),
+                          }).then(() => { setEditingId(null); setEditDraft({}); fetchExpenses(); });
+                        }}
+                        onKeyDown={(ev) => {
+                          if (ev.key === "Enter") ev.currentTarget.blur();
+                          if (ev.key === "Escape") { setEditingId(null); setEditDraft({}); }
+                        }}
                         className="h-8 text-sm"
                       />
                     </td>
                     <td className="px-4 py-2 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => saveEdit(e.id)}>
-                          <Check className="h-3.5 w-3.5 text-green-600" />
-                        </Button>
-                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={cancelEdit}>
-                          <X className="h-3.5 w-3.5 text-red-600" />
-                        </Button>
-                      </div>
+                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={cancelEdit} title="Cancel">
+                        <X className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
                     </td>
                   </>
                 ) : (
