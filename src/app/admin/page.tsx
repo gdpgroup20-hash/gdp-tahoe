@@ -2556,20 +2556,7 @@ function ExpensesTab({ authToken }: { authToken: string }) {
     setEditDraft({});
   };
 
-  const saveEdit = async (id: string) => {
-    try {
-      await fetch(`/api/admin/expenses/${id}`, {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify(editDraft),
-      });
-      setEditingId(null);
-      setEditDraft({});
-      fetchExpenses();
-    } catch {
-      // silently fail
-    }
-  };
+
 
   const handleDelete = async (id: string) => {
     try {
