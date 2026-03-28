@@ -14,44 +14,33 @@ interface FAQSection {
   items: FAQItem[];
 }
 
+// Property-specific facts shown as cards
+const elevationFacts = [
+  { label: "Guests", value: "Sleeps up to 12" },
+  { label: "Bedrooms", value: "7 bedrooms — 4 kings, bunk room, 2 singles, queen Murphy" },
+  { label: "Bathrooms", value: "6.5 baths" },
+  { label: "Size", value: "5,800 sq ft across main house, guest house & studio" },
+  { label: "Lake Access", value: "Direct lakefront on Agate Bay — private deep-water pier" },
+  { label: "Views", value: "270° panoramic lake views from up to 70 feet above the water" },
+  { label: "Hot Tub", value: "No hot tub — multiple decks with fireplaces & heaters" },
+  { label: "Special Features", value: "Two 3-story elevators, Gaggenau & Sub-Zero kitchen, EV charger, cocktail deck" },
+  { label: "Award", value: "Tahoe Quarterly Outstanding Mountain Home of the Year 2015" },
+  { label: "Concierge", value: "24/7 on-site concierge (Eli)" },
+];
+
+const turquoiseFacts = [
+  { label: "Guests", value: "Sleeps up to 7" },
+  { label: "Bedrooms", value: "3 bedrooms — 1 king (master, 2nd floor), 2 queens (main floor)" },
+  { label: "Bathrooms", value: "2.5 baths" },
+  { label: "Size", value: "~2,100 sq ft" },
+  { label: "Lake Access", value: "Public beach directly across the street with SUP rentals" },
+  { label: "Views", value: "Partial lake views from large porch with firepit" },
+  { label: "Hot Tub", value: "Brand new saltwater hot tub" },
+  { label: "Special Features", value: "Custom bar, 70\" TV, garage, walk to Garwoods (5 min)" },
+  { label: "Rating", value: "Airbnb Guest Favorite — top 10% in area" },
+];
+
 const faqSections: FAQSection[] = [
-  {
-    title: "The Properties",
-    items: [
-      {
-        q: "How many guests can each property accommodate?",
-        a: "Elevation Estate sleeps up to 12 guests across 7 bedrooms. Turquoise Tavern sleeps up to 7 guests across 3 bedrooms.",
-      },
-      {
-        q: "What are the bedrooms like at Elevation Estate?",
-        a: "Elevation Estate has 7 bedrooms: four king suites (including the master), one bunk room with two sets of bunk beds, one guest house bedroom with two singles, and a studio with a queen Murphy bed. The property is divided across a main house, guest house, and studio apartment — ideal for multiple families or generations traveling together.",
-      },
-      {
-        q: "What are the bedrooms like at Turquoise Tavern?",
-        a: "Turquoise Tavern has three bedrooms: a king master suite on the second floor, and two queen bedrooms on the main floor. It sleeps up to 7 guests comfortably.",
-      },
-      {
-        q: "Do the properties have lake access?",
-        a: "Elevation Estate has direct lakefront access on Agate Bay — one of the calmest and most beautiful bays on Lake Tahoe — including a private shared deep-water pier that is boat-accessible and locked. Turquoise Tavern is steps from a beautiful public beach directly across the street, with stand-up paddleboard rentals available on the beach.",
-      },
-      {
-        q: "What makes Elevation Estate special?",
-        a: "Elevation Estate is a one-of-a-kind architectural masterpiece — 5,800 square feet built on a hillside spanning 200 feet of elevation. It was awarded Tahoe Quarterly's Outstanding Mountain Home of the Year in 2015 and was featured in Mountain Living magazine. The home offers 270-degree unobstructed panoramic views of Lake Tahoe from up to 70 feet above the water, two three-story elevators, a gourmet kitchen with Gaggenau and Sub-Zero appliances, multiple decks including a cocktail deck and dining deck, and a ChargePoint EV charging station.",
-      },
-      {
-        q: "Is there a hot tub?",
-        a: "Turquoise Tavern has a brand new saltwater hot tub on the property. Elevation Estate has outdoor deck spaces with fireplaces and heaters but no hot tub.",
-      },
-      {
-        q: "Are pets allowed?",
-        a: "Pets must be disclosed at the time of booking at both properties and are subject to an additional pet fee. Undisclosed animals are subject to a strict policy. Please contact us before booking if you plan to bring a pet.",
-      },
-      {
-        q: "Is smoking permitted?",
-        a: "No smoking is permitted at either property.",
-      },
-    ],
-  },
   {
     title: "Booking & Pricing",
     items: [
@@ -246,9 +235,52 @@ export default function FAQPage() {
         </p>
       </section>
 
+      {/* Property Cards */}
+      <section className="pt-16 pb-8 px-6 bg-[#f8f7f5]">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.25em] text-[#0f1d3d]/40 mb-8 text-center">
+            The Properties
+          </h2>
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Elevation Estate */}
+            <div className="bg-white rounded-sm border border-[#0f1d3d]/10 overflow-hidden">
+              <div className="bg-[#0f1d3d] px-6 py-4">
+                <p className="text-xs text-white/50 uppercase tracking-[0.2em] mb-1">Luxury Collection</p>
+                <h3 className="text-xl font-light text-white">Elevation Estate</h3>
+                <a href="/properties/elevation-estate" className="text-xs text-white/60 hover:text-white underline underline-offset-2 mt-1 inline-block">View property →</a>
+              </div>
+              <div className="divide-y divide-[#0f1d3d]/6">
+                {elevationFacts.map((f) => (
+                  <div key={f.label} className="px-6 py-3 flex gap-4 text-sm">
+                    <span className="text-[#0f1d3d]/40 w-28 shrink-0 font-medium text-xs uppercase tracking-wide pt-0.5">{f.label}</span>
+                    <span className="text-[#0f1d3d]/80">{f.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Turquoise Tavern */}
+            <div className="bg-white rounded-sm border border-[#0f1d3d]/10 overflow-hidden">
+              <div className="bg-[#0ea5e9] px-6 py-4">
+                <p className="text-xs text-white/70 uppercase tracking-[0.2em] mb-1">Premium Collection</p>
+                <h3 className="text-xl font-light text-white">Turquoise Tavern</h3>
+                <a href="/properties/turquoise" className="text-xs text-white/70 hover:text-white underline underline-offset-2 mt-1 inline-block">View property →</a>
+              </div>
+              <div className="divide-y divide-[#0f1d3d]/6">
+                {turquoiseFacts.map((f) => (
+                  <div key={f.label} className="px-6 py-3 flex gap-4 text-sm">
+                    <span className="text-[#0f1d3d]/40 w-28 shrink-0 font-medium text-xs uppercase tracking-wide pt-0.5">{f.label}</span>
+                    <span className="text-[#0f1d3d]/80">{f.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* FAQ Sections */}
       <section className="pb-32 px-6">
-        <div className="max-w-3xl mx-auto space-y-16">
+        <div className="max-w-3xl mx-auto space-y-16 pt-16">
           {faqSections.map((section) => (
             <div key={section.title}>
               <h2 className="text-xs font-semibold uppercase tracking-[0.25em] text-[#0f1d3d]/40 mb-6">
