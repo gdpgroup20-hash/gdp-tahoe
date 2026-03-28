@@ -2043,16 +2043,21 @@ function ContactsTab({ authToken }: { authToken: string }) {
   };
 
   const deleteCat = async (id: string) => {
-    const cat = categories.find((c) => c.id === id);
-    if (cat && cat.vendors.length > 0) {
-      setCatDeleteWarning(id);
-      return;
-    }
     const res = await fetch("/api/admin/contacts", {
       method: "DELETE", headers,
       body: JSON.stringify({ id }),
     });
-    if (res.ok) applyResult(await res.json());
+    if (res.ok) {
+      applyResult(await res.json());
+      setCatDeleteWarning(null);
+    } else {
+      const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+      if (err.error === "Cannot delete category with vendors") {
+        setCatDeleteWarning(id);
+      } else {
+        alert(`Delete category failed: ${err.error || res.status}`);
+      }
+    }
   };
 
   const togglePublic = async (id: string, isPublic: boolean) => {
@@ -2229,8 +2234,9 @@ function ContactsTab({ authToken }: { authToken: string }) {
                   <Pencil className="h-3 w-3" />
                 </button>
                 <button
-                  className="text-muted-foreground hover:text-red-600"
-                  onClick={() => deleteCat(cat.id)}
+                  type="button"
+                  className="text-muted-foreground hover:text-red-600 p-1"
+                  onClick={(e) => { e.stopPropagation(); deleteCat(cat.id); }}
                 >
                   <Trash2 className="h-3 w-3" />
                 </button>
