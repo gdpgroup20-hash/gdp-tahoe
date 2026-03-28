@@ -2069,9 +2069,9 @@ function ContactsTab({ authToken }: { authToken: string }) {
         // Re-map isPublic from server response, handling both boolean and integer
         const remapped = {
           ...data,
-          categories: data.categories?.map((c: SvcCategory & { isPublic?: boolean | number }) => ({
+          categories: data.categories?.map((c: Record<string, unknown>) => ({
             ...c,
-            isPublic: c.isPublic === true || c.isPublic === 1,
+            isPublic: c.isPublic === true || c.isPublic === 1 || c.isPublic === "1",
           })) ?? data.categories,
         };
         applyResult(remapped);
