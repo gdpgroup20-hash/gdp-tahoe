@@ -2749,6 +2749,7 @@ function ExpensesTab({ authToken }: { authToken: string }) {
                         value={editDraft.category ?? e.category}
                         onChange={(ev) => setEditDraft((d) => ({ ...d, category: ev.target.value }))}
                         className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                        autoFocus
                       >
                         {[...categories, "Uncategorized"].filter((v, i, a) => a.indexOf(v) === i).map((c) => (
                           <option key={c} value={c}>{c}</option>
@@ -2786,20 +2787,15 @@ function ExpensesTab({ authToken }: { authToken: string }) {
                   </>
                 ) : (
                   <>
-                    <td className="px-4 py-2">
+                    <td className="px-4 py-2 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => startEdit(e)} title="Click to edit">
                       <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">{e.category}</Badge>
                     </td>
-                    <td className="px-4 py-2 text-muted-foreground">{e.property || "—"}</td>
-                    <td className="max-w-[200px] truncate px-4 py-2 text-muted-foreground">{e.notes || "—"}</td>
+                    <td className="px-4 py-2 text-muted-foreground cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => startEdit(e)} title="Click to edit">{e.property || <span className="text-gray-300">—</span>}</td>
+                    <td className="max-w-[200px] truncate px-4 py-2 text-muted-foreground cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => startEdit(e)} title="Click to edit">{e.notes || <span className="text-gray-300">add note</span>}</td>
                     <td className="px-4 py-2 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEdit(e)}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(e.id)}>
-                          <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                        </Button>
-                      </div>
+                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(e.id)}>
+                        <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                      </Button>
                     </td>
                   </>
                 )}
