@@ -118,3 +118,19 @@ export async function deleteContact(id: string): Promise<void> {
   const sql = getDb();
   await sql`DELETE FROM service_contacts WHERE id = ${id}`;
 }
+
+export async function renameCategory(id: string, name: string): Promise<void> {
+  await initDb();
+  const sql = getDb();
+  await sql`UPDATE service_categories SET name = ${name} WHERE id = ${id}`;
+}
+
+export async function deleteCategory(id: string): Promise<void> {
+  await initDb();
+  const sql = getDb();
+  const vendors = await sql`SELECT id FROM service_vendors WHERE category_id = ${id} LIMIT 1`;
+  if (vendors.length > 0) {
+    throw new Error("Cannot delete category with vendors");
+  }
+  await sql`DELETE FROM service_categories WHERE id = ${id}`;
+}

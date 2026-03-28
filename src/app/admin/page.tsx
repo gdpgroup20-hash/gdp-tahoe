@@ -1988,7 +1988,7 @@ function ContactsTab({ authToken }: { authToken: string }) {
   const [categories, setCategories] = useState<SvcCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingVendor, setEditingVendor] = useState<string | null>(null);
-  const [vendorForm, setVendorForm] = useState({ companyName: "", website: "", notes: "" });
+  const [vendorForm, setVendorForm] = useState({ companyName: "", website: "", notes: "", categoryId: "" });
   const [addingVendorTo, setAddingVendorTo] = useState<string | null>(null);
   const [newVendor, setNewVendor] = useState({ companyName: "", website: "", notes: "" });
   const [addingContactTo, setAddingContactTo] = useState<string | null>(null);
@@ -1996,6 +1996,9 @@ function ContactsTab({ authToken }: { authToken: string }) {
   const [newCatName, setNewCatName] = useState("");
   const [addingCat, setAddingCat] = useState(false);
   const [showCatForm, setShowCatForm] = useState(false);
+  const [editingCat, setEditingCat] = useState<string | null>(null);
+  const [editCatName, setEditCatName] = useState("");
+  const [catDeleteWarning, setCatDeleteWarning] = useState<string | null>(null);
 
   const headers = { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" };
 
@@ -2022,10 +2025,33 @@ function ContactsTab({ authToken }: { authToken: string }) {
   const saveVendor = async (vendor: SvcVendor) => {
     const res = await fetch("/api/admin/contacts/vendors", {
       method: "POST", headers,
-      body: JSON.stringify({ id: vendor.id, categoryId: vendor.categoryId, ...vendorForm }),
+      body: JSON.stringify({ id: vendor.id, categoryId: vendorForm.categoryId || vendor.categoryId, companyName: vendorForm.companyName, website: vendorForm.website, notes: vendorForm.notes }),
     });
     if (res.ok) applyResult(await res.json());
     setEditingVendor(null);
+  };
+
+  const renameCat = async (id: string) => {
+    if (!editCatName.trim()) return;
+    const res = await fetch("/api/admin/contacts", {
+      method: "PATCH", headers,
+      body: JSON.stringify({ id, name: editCatName.trim() }),
+    });
+    if (res.ok) applyResult(await res.json());
+    setEditingCat(null);
+  };
+
+  const deleteCat = async (id: string) => {
+    const cat = categories.find((c) => c.id === id);
+    if (cat && cat.vendors.length > 0) {
+      setCatDeleteWarning(id);
+      return;
+    }
+    const res = await fetch("/api/admin/contacts", {
+      method: "DELETE", headers,
+      body: JSON.stringify({ id }),
+    });
+    if (res.ok) applyResult(await res.json());
   };
 
   const addVendor = async (categoryId: string) => {
@@ -2090,6 +2116,19 @@ function ContactsTab({ authToken }: { authToken: string }) {
 
   return (
     <div className="space-y-8">
+      {/* Category Quick-Nav */}
+      <div className="flex gap-2 overflow-x-auto pb-2">
+        {categories.map((cat) => (
+          <button
+            key={cat.id}
+            onClick={() => document.getElementById(`cat-${cat.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            className="shrink-0 rounded-full border border-[#0f1d3d]/20 px-3 py-1 text-xs text-[#0f1d3d] hover:bg-[#0f1d3d] hover:text-white transition"
+          >
+            {cat.name}
+          </button>
+        ))}
+      </div>
+
       {/* Add Category */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">{categories.length} service categories, sorted A–Z</p>
@@ -2118,9 +2157,40 @@ function ContactsTab({ authToken }: { authToken: string }) {
       </div>
 
       {categories.map((cat) => (
-        <div key={cat.id}>
+        <div key={cat.id} id={`cat-${cat.id}`}>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{cat.name}</h3>
+            {editingCat === cat.id ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  value={editCatName}
+                  onChange={(e) => setEditCatName(e.target.value)}
+                  className="h-7 w-48 text-xs"
+                  onKeyDown={(e) => e.key === "Enter" && renameCat(cat.id)}
+                  autoFocus
+                />
+                <Button size="sm" className="h-7 text-xs bg-[#0f1d3d] hover:bg-[#1a2d5c]" onClick={() => renameCat(cat.id)}>Save</Button>
+                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingCat(null)}>Cancel</Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{cat.name}</h3>
+                <button
+                  className="text-muted-foreground hover:text-foreground"
+                  onClick={() => { setEditingCat(cat.id); setEditCatName(cat.name); }}
+                >
+                  <Pencil className="h-3 w-3" />
+                </button>
+                <button
+                  className="text-muted-foreground hover:text-red-600"
+                  onClick={() => deleteCat(cat.id)}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+                {catDeleteWarning === cat.id && (
+                  <span className="text-xs text-red-600">Remove all vendors first</span>
+                )}
+              </div>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -2189,6 +2259,18 @@ function ContactsTab({ authToken }: { authToken: string }) {
                         <Label className="text-xs">Notes</Label>
                         <Textarea value={vendorForm.notes} onChange={(e) => setVendorForm({ ...vendorForm, notes: e.target.value })} className="mt-1" rows={2} />
                       </div>
+                      <div>
+                        <Label className="text-xs">Category</Label>
+                        <select
+                          value={vendorForm.categoryId}
+                          onChange={(e) => setVendorForm({ ...vendorForm, categoryId: e.target.value })}
+                          className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        >
+                          {categories.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
                       <div className="flex gap-2">
                         <Button size="sm" className="h-7 text-xs bg-[#0f1d3d] hover:bg-[#1a2d5c]" onClick={() => saveVendor(vendor)}>
                           <Check className="h-3 w-3 mr-1" /> Save
@@ -2206,7 +2288,7 @@ function ContactsTab({ authToken }: { authToken: string }) {
                             <span className="text-base font-bold">{vendor.companyName}</span>
                             <button
                               className="text-muted-foreground hover:text-foreground"
-                              onClick={() => { setEditingVendor(vendor.id); setVendorForm({ companyName: vendor.companyName, website: vendor.website, notes: vendor.notes }); }}
+                              onClick={() => { setEditingVendor(vendor.id); setVendorForm({ companyName: vendor.companyName, website: vendor.website, notes: vendor.notes, categoryId: vendor.categoryId }); }}
                             >
                               <Pencil className="h-3.5 w-3.5" />
                             </button>

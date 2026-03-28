@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCategories, createCategory } from "@/lib/contacts";
+import { getCategories, createCategory, renameCategory, deleteCategory } from "@/lib/contacts";
 
 export const dynamic = "force-dynamic";
 
@@ -35,5 +35,39 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Error creating category:", error);
     return NextResponse.json({ error: "Failed to create category" }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  if (!checkAuth(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  try {
+    const { id, name } = await request.json();
+    if (!id || !name?.trim()) return NextResponse.json({ error: "id and name required" }, { status: 400 });
+    await renameCategory(id, name.trim());
+    const categories = await getCategories();
+    return NextResponse.json({ categories });
+  } catch (error) {
+    console.error("Error renaming category:", error);
+    return NextResponse.json({ error: "Failed to rename category" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  if (!checkAuth(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  try {
+    const { id } = await request.json();
+    if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+    await deleteCategory(id);
+    const categories = await getCategories();
+    return NextResponse.json({ categories });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Failed to delete category";
+    const status = msg === "Cannot delete category with vendors" ? 400 : 500;
+    console.error("Error deleting category:", error);
+    return NextResponse.json({ error: msg }, { status });
   }
 }
