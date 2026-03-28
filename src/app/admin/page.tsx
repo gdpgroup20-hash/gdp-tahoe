@@ -1158,10 +1158,19 @@ function daysFromNow(dateStr: string): number {
 
 function relativeDue(dateStr: string): string {
   const days = daysFromNow(dateStr);
-  if (days < 0) return `Overdue by ${Math.abs(days)} day${Math.abs(days) !== 1 ? "s" : ""}`;
+  const date = new Date(dateStr);
+  const currentYear = new Date().getFullYear();
+  const dateYear = date.getFullYear();
+  const dateFormatted = date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    ...(dateYear !== currentYear ? { year: "numeric" } : {}),
+  });
+  if (days < 0) return `Overdue by ${Math.abs(days)} day${Math.abs(days) !== 1 ? "s" : ""} (${dateFormatted})`;
   if (days === 0) return "Due today";
-  if (days <= 14) return `Due in ${days} day${days !== 1 ? "s" : ""}`;
-  return `Due ${new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+  if (days === 1) return "Due tomorrow";
+  if (days <= 30) return `Due in ${days} days — ${dateFormatted}`;
+  return `Due in ${days} days — ${dateFormatted}`;
 }
 
 function intervalLabel(days: number): string {
@@ -1301,9 +1310,11 @@ function MaintenanceTab({ authToken }: { authToken: string }) {
     setShowForm(true);
   };
 
-  const overdue = tasks.filter((t) => daysFromNow(t.nextDue) < 0);
-  const dueSoon = tasks.filter((t) => { const d = daysFromNow(t.nextDue); return d >= 0 && d <= 14; });
-  const upcoming = tasks.filter((t) => daysFromNow(t.nextDue) > 14);
+  const sortByDue = (a: MaintenanceTask, b: MaintenanceTask) =>
+    new Date(a.nextDue).getTime() - new Date(b.nextDue).getTime();
+  const overdue = tasks.filter((t) => daysFromNow(t.nextDue) < 0).sort(sortByDue);
+  const dueSoon = tasks.filter((t) => { const d = daysFromNow(t.nextDue); return d >= 0 && d <= 30; }).sort(sortByDue);
+  const upcoming = tasks.filter((t) => daysFromNow(t.nextDue) > 30).sort(sortByDue);
 
   const statusGroups = [
     { label: "Overdue", emoji: "\uD83D\uDD34", tasks: overdue, color: "text-red-600" },
