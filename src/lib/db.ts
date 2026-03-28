@@ -204,13 +204,12 @@ export async function initDb() {
     INSERT INTO service_categories (id, name, sort_order) VALUES
       ('cat-watersports', 'Water Sports', 10),
       ('cat-chef', 'Private Chef / Catering', 11),
-      ('cat-adventure', 'Adventure & Tours', 12),
-      ('cat-concierge', 'Concierge', 13)
+      ('cat-adventure', 'Adventure & Tours', 12)
     ON CONFLICT (id) DO NOTHING
   `;
 
   // Mark guest-facing categories as public by default
-  await sql`UPDATE service_categories SET is_public = 1 WHERE id IN ('cat-watersports', 'cat-chef', 'cat-adventure', 'cat-concierge')`;
+  await sql`UPDATE service_categories SET is_public = 1 WHERE id IN ('cat-watersports', 'cat-chef', 'cat-adventure')`;
 
   // North Tahoe Watersports
   await sql`
