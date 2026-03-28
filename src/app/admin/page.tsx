@@ -2745,16 +2745,42 @@ function ExpensesTab({ authToken }: { authToken: string }) {
                 {editingId === e.id ? (
                   <>
                     <td className="px-4 py-2">
-                      <select
-                        value={editDraft.category ?? e.category}
-                        onChange={(ev) => setEditDraft((d) => ({ ...d, category: ev.target.value }))}
-                        className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
-                        autoFocus
-                      >
-                        {[...categories, "Uncategorized"].filter((v, i, a) => a.indexOf(v) === i).map((c) => (
-                          <option key={c} value={c}>{c}</option>
-                        ))}
-                      </select>
+                      {editDraft.category === "__new__" ? (
+                        <div className="flex gap-1">
+                          <Input
+                            autoFocus
+                            placeholder="New category name..."
+                            className="h-8 text-sm"
+                            onKeyDown={(ev) => {
+                              if (ev.key === "Enter" && ev.currentTarget.value.trim()) {
+                                setEditDraft((d) => ({ ...d, category: ev.currentTarget.value.trim() }));
+                              }
+                              if (ev.key === "Escape") {
+                                setEditDraft((d) => ({ ...d, category: e.category }));
+                              }
+                            }}
+                            onBlur={(ev) => {
+                              if (ev.target.value.trim()) {
+                                setEditDraft((d) => ({ ...d, category: ev.target.value.trim() }));
+                              } else {
+                                setEditDraft((d) => ({ ...d, category: e.category }));
+                              }
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <select
+                          value={editDraft.category ?? e.category}
+                          onChange={(ev) => setEditDraft((d) => ({ ...d, category: ev.target.value }))}
+                          className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                          autoFocus
+                        >
+                          {[...categories, "Uncategorized"].filter((v, i, a) => a.indexOf(v) === i).sort().map((c) => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                          <option value="__new__">＋ Add new category...</option>
+                        </select>
+                      )}
                     </td>
                     <td className="px-4 py-2">
                       <select
