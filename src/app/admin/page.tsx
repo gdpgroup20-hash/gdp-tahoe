@@ -2099,7 +2099,12 @@ function ContactsTab({ authToken }: { authToken: string }) {
       method: "DELETE", headers,
       body: JSON.stringify({ id }),
     });
-    if (res.ok) applyResult(await res.json());
+    if (res.ok) {
+      applyResult(await res.json());
+    } else {
+      const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+      alert(`Delete vendor failed: ${err.error || res.status}`);
+    }
   };
 
   const addContact = async (vendorId: string) => {
@@ -2117,7 +2122,12 @@ function ContactsTab({ authToken }: { authToken: string }) {
       method: "DELETE", headers,
       body: JSON.stringify({ id }),
     });
-    if (res.ok) applyResult(await res.json());
+    if (res.ok) {
+      applyResult(await res.json());
+    } else {
+      const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+      alert(`Delete contact failed: ${err.error || res.status}`);
+    }
   };
 
   if (loading) {
