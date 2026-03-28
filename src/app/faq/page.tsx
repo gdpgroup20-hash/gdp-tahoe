@@ -233,14 +233,14 @@ export default function FAQPage() {
       />
 
       {/* Hero */}
-      <section className="pt-32 pb-16 px-6 text-center bg-white">
-        <p className="text-[#0f1d3d]/50 uppercase tracking-[0.3em] text-sm">Support</p>
-        <h1 className="mt-4 text-4xl sm:text-5xl font-light text-[#0f1d3d] tracking-tight">
+      <section className="pt-28 pb-16 px-6 text-center bg-[#0f1d3d]">
+        <p className="text-white/50 uppercase tracking-[0.3em] text-sm">Support</p>
+        <h1 className="mt-4 text-4xl sm:text-5xl font-light text-white tracking-tight">
           Frequently Asked Questions
         </h1>
-        <p className="mt-6 text-[#0f1d3d]/60 max-w-xl mx-auto leading-relaxed">
+        <p className="mt-6 text-white/60 max-w-xl mx-auto leading-relaxed">
           Everything you need to know about our properties, booking, and your stay. Can&apos;t find an answer?{" "}
-          <a href="mailto:gdpgroup20@gmail.com" className="underline underline-offset-2 hover:text-[#0f1d3d]">
+          <a href="mailto:gdpgroup20@gmail.com" className="underline underline-offset-2 hover:text-white">
             Get in touch.
           </a>
         </p>
