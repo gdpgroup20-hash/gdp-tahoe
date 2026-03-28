@@ -2056,11 +2056,18 @@ function ContactsTab({ authToken }: { authToken: string }) {
   };
 
   const togglePublic = async (id: string, isPublic: boolean) => {
+    // Optimistic update immediately
+    setCategories(prev => prev.map(c => c.id === id ? { ...c, isPublic } : c));
     const res = await fetch("/api/admin/contacts", {
       method: "PATCH", headers,
       body: JSON.stringify({ id, isPublic }),
     });
-    if (res.ok) applyResult(await res.json());
+    if (res.ok) {
+      applyResult(await res.json());
+    } else {
+      // Revert on failure
+      setCategories(prev => prev.map(c => c.id === id ? { ...c, isPublic: !isPublic } : c));
+    }
   };
 
   const addVendor = async (categoryId: string) => {

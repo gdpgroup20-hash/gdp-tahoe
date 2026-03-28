@@ -73,7 +73,7 @@ export async function getCategories(): Promise<ServiceCategory[]> {
     id: cat.id,
     name: cat.name,
     sortOrder: cat.sort_order,
-    isPublic: cat.is_public === 1,
+    isPublic: cat.is_public === 1 || cat.is_public === true,
     vendors: vendorsByCategory.get(cat.id) || [],
   }));
 }
