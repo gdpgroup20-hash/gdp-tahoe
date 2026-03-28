@@ -94,7 +94,7 @@ export async function createCampaign(data: { name: string; subject: string }): P
     INSERT INTO email_campaigns (id, name, subject, status, recipient_count, created_at)
     VALUES (${id}, ${data.name}, ${data.subject}, 'draft', 0, ${now})
   `;
-  return { id, name: data.name, subject: data.subject, status: "draft", sentAt: null, recipientCount: 0, createdAt: now };
+  return { id, name: data.name, subject: data.subject, status: "draft", sentAt: null, recipientCount: 0, createdAt: now, body: "" };
 }
 
 export async function recordSend(campaignId: string, recipients: { name: string; email: string }[]): Promise<void> {
