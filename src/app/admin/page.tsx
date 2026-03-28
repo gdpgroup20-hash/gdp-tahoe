@@ -1813,7 +1813,9 @@ function CalendarTab({
                             className={cn(
                               "text-[10px] leading-tight px-1 py-0.5 truncate text-white",
                               ev.source === "Blocked"
-                                ? "bg-gray-400 text-gray-50"
+                                ? ev.property === "elevation"
+                                  ? "bg-[#0f1d3d]/40 text-[#0f1d3d]"
+                                  : "bg-[#0ea5e9]/40 text-[#0369a1]"
                                 : ev.property === "elevation"
                                   ? "bg-[#0f1d3d]"
                                   : "bg-[#0ea5e9]",
@@ -1890,7 +1892,9 @@ function CalendarTab({
                               className={cn(
                                 "text-xs px-2 py-1 rounded text-white truncate",
                                 ev.source === "Blocked"
-                                  ? "bg-gray-400 text-gray-50"
+                                  ? ev.property === "elevation"
+                                    ? "bg-[#0f1d3d]/40 text-[#0f1d3d]"
+                                    : "bg-[#0ea5e9]/40 text-[#0369a1]"
                                   : ev.property === "elevation"
                                     ? "bg-[#0f1d3d]"
                                     : "bg-[#0ea5e9]"
@@ -1934,8 +1938,12 @@ function CalendarTab({
               Turquoise Tavern (direct)
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="inline-block h-3 w-3 rounded-sm bg-gray-400" />
-              Blocked (Airbnb/VRBO)
+              <span className="inline-block h-3 w-3 rounded-sm bg-[#0f1d3d]/40" />
+              Elevation (Airbnb/VRBO)
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block h-3 w-3 rounded-sm bg-[#0ea5e9]/40" />
+              Turquoise (Airbnb/VRBO)
             </div>
           </div>
         </>
