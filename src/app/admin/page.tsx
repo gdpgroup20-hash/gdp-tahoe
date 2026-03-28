@@ -122,11 +122,117 @@ function isSeasonalRateActive(sr: SeasonalRate): boolean {
   return today >= sr.startDate && today <= sr.endDate;
 }
 
+// ─── Platform Reservation Type ──────────────────────────────────────────────
+
+interface PlatformReservation {
+  id: string;
+  confirmationCode: string;
+  source: "airbnb" | "vrbo" | "direct";
+  property: string;
+  guestName: string;
+  guestEmail: string;
+  guestPhone: string;
+  checkIn: string;
+  checkOut: string;
+  nights: number;
+  adults: number;
+  children: number;
+  earnings: string;
+  status: string;
+  bookedOn: string;
+  createdAt: string;
+}
+
+// ─── Unified Reservation (merged view) ─────────────────────────────────────
+
+interface UnifiedReservation {
+  id: string;
+  guestName: string;
+  guestEmail: string;
+  guestPhone: string;
+  property: string;
+  checkIn: string;
+  checkOut: string;
+  nights: number;
+  guests: number;
+  status: string;
+  source: "direct" | "airbnb" | "vrbo";
+  confirmationCode: string;
+  earnings: string;
+  totalPrice: number;
+  specialRequests: string;
+  stripePaymentIntentId: string;
+  createdAt: string;
+}
+
+function bookingToUnified(b: Booking): UnifiedReservation {
+  return {
+    id: b.id,
+    guestName: b.guestName,
+    guestEmail: b.guestEmail,
+    guestPhone: b.guestPhone,
+    property: b.propertyName,
+    checkIn: b.checkIn,
+    checkOut: b.checkOut,
+    nights: nightsBetween(b.checkIn, b.checkOut),
+    guests: b.guests,
+    status: b.status,
+    source: "direct",
+    confirmationCode: "",
+    earnings: "",
+    totalPrice: b.totalPrice,
+    specialRequests: b.specialRequests,
+    stripePaymentIntentId: b.stripePaymentIntentId,
+    createdAt: b.createdAt,
+  };
+}
+
+function platformToUnified(p: PlatformReservation): UnifiedReservation {
+  return {
+    id: p.id,
+    guestName: p.guestName,
+    guestEmail: p.guestEmail,
+    guestPhone: p.guestPhone,
+    property: p.property === "elevation-estate" ? "Elevation Estate" : p.property === "turquoise" ? "Turquoise Tavern" : p.property,
+    checkIn: p.checkIn,
+    checkOut: p.checkOut,
+    nights: p.nights || nightsBetween(p.checkIn, p.checkOut),
+    guests: p.adults + p.children,
+    status: p.status,
+    source: p.source,
+    confirmationCode: p.confirmationCode,
+    earnings: p.earnings,
+    totalPrice: 0,
+    specialRequests: "",
+    stripePaymentIntentId: "",
+    createdAt: p.createdAt,
+  };
+}
+
+// ─── Source Badge ────────────────────────────────────────────────────────────
+
+function SourceBadge({ source }: { source: "direct" | "airbnb" | "vrbo" }) {
+  return (
+    <Badge
+      className={cn(
+        "capitalize",
+        source === "airbnb" && "bg-orange-100 text-orange-800 hover:bg-orange-100",
+        source === "vrbo" && "bg-blue-100 text-blue-800 hover:bg-blue-100",
+        source === "direct" && "bg-[#0f1d3d] text-white hover:bg-[#0f1d3d]"
+      )}
+    >
+      {source === "airbnb" ? "Airbnb" : source === "vrbo" ? "VRBO" : "Direct"}
+    </Badge>
+  );
+}
+
 // ─── CSV Export ──────────────────────────────────────────────────────────────
 
-function exportBookingsCSV(bookings: Booking[]) {
+function exportReservationsCSV(reservations: UnifiedReservation[]) {
   const headers = [
-    "Booking ID",
+    "ID",
+    "Confirmation Code",
+    "Source",
     "Property",
     "Guest Name",
     "Guest Email",
@@ -135,34 +241,32 @@ function exportBookingsCSV(bookings: Booking[]) {
     "Check-out",
     "Nights",
     "Guests",
-    "Total",
+    "Total/Earnings",
     "Status",
-    "Stripe Payment Intent",
-    "Special Requests",
     "Created",
   ];
-  const rows = bookings.map((b) => [
-    b.id,
-    b.propertyName,
-    b.guestName,
-    b.guestEmail,
-    b.guestPhone,
-    b.checkIn,
-    b.checkOut,
-    nightsBetween(b.checkIn, b.checkOut).toString(),
-    b.guests.toString(),
-    b.totalPrice.toString(),
-    b.status,
-    b.stripePaymentIntentId,
-    `"${(b.specialRequests || "").replace(/"/g, '""')}"`,
-    b.createdAt,
+  const rows = reservations.map((r) => [
+    r.id,
+    r.confirmationCode,
+    r.source,
+    r.property,
+    r.guestName,
+    r.guestEmail,
+    r.guestPhone,
+    r.checkIn,
+    r.checkOut,
+    r.nights.toString(),
+    r.guests.toString(),
+    r.source === "direct" ? r.totalPrice.toString() : r.earnings,
+    r.status,
+    r.createdAt,
   ]);
   const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `gdp-tahoe-bookings-${new Date().toISOString().split("T")[0]}.csv`;
+  a.download = `gdp-tahoe-reservations-${new Date().toISOString().split("T")[0]}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -261,24 +365,61 @@ function InlineEdit({
 function ReservationsTab({
   bookings,
   loading,
+  authToken,
 }: {
   bookings: Booking[];
   loading: boolean;
+  authToken: string;
 }) {
   const [subTab, setSubTab] = useState<"upcoming" | "past">("upcoming");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [sourceFilter, setSourceFilter] = useState<"all" | "direct" | "airbnb" | "vrbo">("all");
+  const [platformReservations, setPlatformReservations] = useState<PlatformReservation[]>([]);
+  const [platformLoading, setPlatformLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchPlatform() {
+      try {
+        const res = await fetch("/api/admin/platform-reservations", {
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setPlatformReservations(data.reservations ?? []);
+        }
+      } catch {
+        // silent
+      } finally {
+        setPlatformLoading(false);
+      }
+    }
+    fetchPlatform();
+  }, [authToken]);
+
+  // Merge bookings + platform reservations into unified list
+  const allReservations: UnifiedReservation[] = [
+    ...bookings.map(bookingToUnified),
+    ...platformReservations.map(platformToUnified),
+  ].sort((a, b) => b.checkIn.localeCompare(a.checkIn));
 
   const today = new Date().toISOString().split("T")[0];
-  const upcoming = bookings.filter((b) => b.checkIn >= today);
-  const past = bookings.filter((b) => b.checkIn < today);
+
+  // Apply source filter
+  const filtered = sourceFilter === "all"
+    ? allReservations
+    : allReservations.filter((r) => r.source === sourceFilter);
+
+  const upcoming = filtered.filter((r) => r.checkIn >= today);
+  const past = filtered.filter((r) => r.checkIn < today);
   const displayed = subTab === "upcoming" ? upcoming : past;
 
-  const totalBookings = bookings.length;
-  const confirmedBookings = bookings.filter((b) => b.status === "confirmed").length;
-  const pendingBookings = bookings.filter((b) => b.status === "pending").length;
+  const directBookings = bookings.length;
+  const platformCount = platformReservations.filter((p) => p.source === "airbnb" || p.source === "vrbo").length;
   const totalRevenue = bookings
     .filter((b) => b.status !== "cancelled")
     .reduce((sum, b) => sum + b.totalPrice, 0);
+
+  const isLoading = loading || platformLoading;
 
   return (
     <div className="space-y-6">
@@ -287,37 +428,37 @@ function ReservationsTab({
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Bookings
+              All Reservations
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{totalBookings}</p>
+            <p className="text-2xl font-bold">{allReservations.length}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Confirmed
+              Direct Bookings
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-green-700">{confirmedBookings}</p>
+            <p className="text-2xl font-bold text-[#0f1d3d]">{directBookings}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Pending
+              Platform Bookings
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-yellow-700">{pendingBookings}</p>
+            <p className="text-2xl font-bold text-orange-700">{platformCount}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Revenue
+              Direct Revenue
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -326,59 +467,70 @@ function ReservationsTab({
         </Card>
       </div>
 
-      {/* Sub-tabs + Export */}
-      <div className="flex items-center justify-between">
-        <div className="flex gap-1 rounded-lg bg-muted p-1">
-          <button
-            onClick={() => setSubTab("upcoming")}
-            className={cn(
-              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-              subTab === "upcoming"
-                ? "bg-white text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            )}
+      {/* Sub-tabs + Filters + Export */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex gap-1 rounded-lg bg-muted p-1">
+            <button
+              onClick={() => setSubTab("upcoming")}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                subTab === "upcoming"
+                  ? "bg-white text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Upcoming ({upcoming.length})
+            </button>
+            <button
+              onClick={() => setSubTab("past")}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                subTab === "past"
+                  ? "bg-white text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Past ({past.length})
+            </button>
+          </div>
+          <select
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value as typeof sourceFilter)}
+            className="rounded-md border bg-white px-3 py-1.5 text-sm"
           >
-            Upcoming ({upcoming.length})
-          </button>
-          <button
-            onClick={() => setSubTab("past")}
-            className={cn(
-              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-              subTab === "past"
-                ? "bg-white text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            Past ({past.length})
-          </button>
+            <option value="all">All Sources</option>
+            <option value="direct">Direct</option>
+            <option value="airbnb">Airbnb</option>
+            <option value="vrbo">VRBO</option>
+          </select>
         </div>
         <Button
           variant="outline"
           size="sm"
-          onClick={() => exportBookingsCSV(bookings)}
-          disabled={bookings.length === 0}
+          onClick={() => exportReservationsCSV(filtered)}
+          disabled={filtered.length === 0}
         >
           <Download className="mr-1.5 h-4 w-4" />
           Export CSV
         </Button>
       </div>
 
-      {/* Booking list */}
+      {/* Reservation list */}
       <Card>
         <CardContent className="p-0">
           {displayed.length === 0 ? (
             <div className="px-4 py-12 text-center text-muted-foreground">
-              {loading ? "Loading bookings..." : `No ${subTab} bookings.`}
+              {isLoading ? "Loading reservations..." : `No ${subTab} reservations.`}
             </div>
           ) : (
             <div className="divide-y">
-              {displayed.map((booking) => {
-                const isExpanded = expandedId === booking.id;
-                const nights = nightsBetween(booking.checkIn, booking.checkOut);
+              {displayed.map((res) => {
+                const isExpanded = expandedId === res.id;
                 return (
-                  <div key={booking.id}>
+                  <div key={res.id}>
                     <button
-                      onClick={() => setExpandedId(isExpanded ? null : booking.id)}
+                      onClick={() => setExpandedId(isExpanded ? null : res.id)}
                       className="flex w-full items-center gap-4 px-4 py-3 text-left hover:bg-muted/30 transition-colors"
                     >
                       {isExpanded ? (
@@ -387,15 +539,16 @@ function ReservationsTab({
                         <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                       )}
                       <div className="flex flex-1 flex-wrap items-center gap-x-6 gap-y-1 text-sm min-w-0">
-                        <span className="font-medium w-32 truncate">{booking.guestName}</span>
+                        <span className="font-medium w-32 truncate">{res.guestName || "Guest"}</span>
                         <span className="text-muted-foreground w-36 truncate">
-                          {booking.propertyName}
+                          {res.property}
                         </span>
                         <span className="text-muted-foreground">
-                          {formatDate(booking.checkIn)} - {formatDate(booking.checkOut)}
+                          {formatDate(res.checkIn)} - {formatDate(res.checkOut)}
                         </span>
-                        <span className="font-medium">{formatCurrency(booking.totalPrice)}</span>
-                        <StatusBadge status={booking.status} />
+                        <span className="text-muted-foreground">{res.nights}n</span>
+                        <SourceBadge source={res.source} />
+                        <StatusBadge status={res.status as Booking["status"]} />
                       </div>
                     </button>
                     {isExpanded && (
@@ -405,81 +558,87 @@ function ReservationsTab({
                             <p className="text-xs font-medium uppercase text-muted-foreground mb-1">
                               Guest Name
                             </p>
-                            <p>{booking.guestName}</p>
+                            <p>{res.guestName || "N/A"}</p>
                           </div>
                           <div>
                             <p className="text-xs font-medium uppercase text-muted-foreground mb-1">
                               Email
                             </p>
-                            <p>{booking.guestEmail}</p>
+                            <p>{res.guestEmail || "N/A"}</p>
                           </div>
                           <div>
                             <p className="text-xs font-medium uppercase text-muted-foreground mb-1">
                               Phone
                             </p>
-                            <p>{booking.guestPhone || "N/A"}</p>
+                            <p>{res.guestPhone || "N/A"}</p>
                           </div>
                           <div>
                             <p className="text-xs font-medium uppercase text-muted-foreground mb-1">
                               Check-in
                             </p>
-                            <p>{formatDate(booking.checkIn)}</p>
+                            <p>{formatDate(res.checkIn)}</p>
                           </div>
                           <div>
                             <p className="text-xs font-medium uppercase text-muted-foreground mb-1">
                               Check-out
                             </p>
-                            <p>{formatDate(booking.checkOut)}</p>
+                            <p>{formatDate(res.checkOut)}</p>
                           </div>
                           <div>
                             <p className="text-xs font-medium uppercase text-muted-foreground mb-1">
                               Nights
                             </p>
-                            <p>{nights}</p>
+                            <p>{res.nights}</p>
                           </div>
                           <div>
                             <p className="text-xs font-medium uppercase text-muted-foreground mb-1">
                               Guests
                             </p>
-                            <p>{booking.guests}</p>
+                            <p>{res.guests}</p>
                           </div>
                           <div>
                             <p className="text-xs font-medium uppercase text-muted-foreground mb-1">
-                              Total Paid
+                              {res.source === "direct" ? "Total Paid" : "Earnings"}
                             </p>
-                            <p className="font-semibold">{formatCurrency(booking.totalPrice)}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs font-medium uppercase text-muted-foreground mb-1">
-                              Status
-                            </p>
-                            <StatusBadge status={booking.status} />
-                          </div>
-                          <div className="sm:col-span-2 lg:col-span-3">
-                            <p className="text-xs font-medium uppercase text-muted-foreground mb-1">
-                              Special Requests
-                            </p>
-                            <p className="text-muted-foreground">
-                              {booking.specialRequests || "None"}
+                            <p className="font-semibold">
+                              {res.source === "direct" ? formatCurrency(res.totalPrice) : res.earnings || "N/A"}
                             </p>
                           </div>
                           <div>
                             <p className="text-xs font-medium uppercase text-muted-foreground mb-1">
-                              Booking ID
+                              Source
                             </p>
-                            <p className="font-mono text-xs">{booking.id}</p>
+                            <SourceBadge source={res.source} />
                           </div>
+                          {res.source === "direct" && res.specialRequests && (
+                            <div className="sm:col-span-2 lg:col-span-3">
+                              <p className="text-xs font-medium uppercase text-muted-foreground mb-1">
+                                Special Requests
+                              </p>
+                              <p className="text-muted-foreground">{res.specialRequests}</p>
+                            </div>
+                          )}
                           <div>
                             <p className="text-xs font-medium uppercase text-muted-foreground mb-1">
-                              Stripe Payment Intent
+                              {res.source === "direct" ? "Booking ID" : "Confirmation Code"}
                             </p>
-                            <p className="font-mono text-xs">{booking.stripePaymentIntentId}</p>
+                            <p className="font-mono text-xs">
+                              {res.source === "direct" ? res.id : res.confirmationCode || res.id}
+                            </p>
                           </div>
+                          {res.source === "direct" && res.stripePaymentIntentId && (
+                            <div>
+                              <p className="text-xs font-medium uppercase text-muted-foreground mb-1">
+                                Stripe Payment Intent
+                              </p>
+                              <p className="font-mono text-xs">{res.stripePaymentIntentId}</p>
+                            </div>
+                          )}
                           <div>
                             <p className="text-xs font-medium uppercase text-muted-foreground mb-1">
                               Created
                             </p>
-                            <p className="text-xs">{formatDateTime(booking.createdAt)}</p>
+                            <p className="text-xs">{formatDateTime(res.createdAt)}</p>
                           </div>
                         </div>
                       </div>
@@ -1618,7 +1777,7 @@ interface CalendarEvent {
   id: string;
   property: "elevation" | "turquoise";
   guestName: string;
-  source: "Direct" | "Airbnb" | "VRBO" | "Blocked";
+  source: "Direct" | "Airbnb" | "VRBO";
   checkIn: string; // YYYY-MM-DD
   checkOut: string; // YYYY-MM-DD
 }
@@ -1681,24 +1840,31 @@ function CalendarTab({
     setMonth(today.getMonth());
   };
 
-  // Build events from bookings + iCal blocked dates
+  // Build events from bookings + iCal blocked dates (with source)
   useEffect(() => {
     let cancelled = false;
     async function load() {
       setCalLoading(true);
       try {
-        // Fetch iCal blocked dates for both properties
+        // Fetch iCal blocked dates with source for both properties
         const [elevRes, turqRes] = await Promise.all([
           fetch("/api/availability?property=elevation-estate"),
           fetch("/api/availability?property=turquoise"),
         ]);
-        const elevData = elevRes.ok ? await elevRes.json() : { blockedDates: [] };
-        const turqData = turqRes.ok ? await turqRes.json() : { blockedDates: [] };
+        const elevData = elevRes.ok ? await elevRes.json() : { blockedDatesWithSource: [] };
+        const turqData = turqRes.ok ? await turqRes.json() : { blockedDatesWithSource: [] };
 
         if (cancelled) return;
 
-        const elevBlocked: Set<string> = new Set(elevData.blockedDates ?? []);
-        const turqBlocked: Set<string> = new Set(turqData.blockedDates ?? []);
+        // Build source-tagged blocked date maps: date -> source
+        const elevBlocked = new Map<string, "airbnb" | "vrbo" | "direct">();
+        for (const entry of (elevData.blockedDatesWithSource ?? [])) {
+          if (!elevBlocked.has(entry.date)) elevBlocked.set(entry.date, entry.source);
+        }
+        const turqBlocked = new Map<string, "airbnb" | "vrbo" | "direct">();
+        for (const entry of (turqData.blockedDatesWithSource ?? [])) {
+          if (!turqBlocked.has(entry.date)) turqBlocked.set(entry.date, entry.source);
+        }
 
         // Build events from confirmed bookings
         const bookingEvents: CalendarEvent[] = bookings
@@ -1714,7 +1880,7 @@ function CalendarTab({
             checkOut: b.checkOut,
           }));
 
-        // Remove booking dates from blocked sets (avoid duplicates)
+        // Remove booking dates from blocked maps (avoid duplicates)
         for (const ev of bookingEvents) {
           const start = new Date(ev.checkIn);
           const end = new Date(ev.checkOut);
@@ -1724,42 +1890,46 @@ function CalendarTab({
           }
         }
 
-        // Convert remaining blocked dates to contiguous events
+        // Convert remaining blocked dates to contiguous events grouped by source
         const blockedToEvents = (
-          blocked: Set<string>,
+          blocked: Map<string, "airbnb" | "vrbo" | "direct">,
           property: "elevation" | "turquoise"
         ): CalendarEvent[] => {
-          const sorted = Array.from(blocked).sort();
+          const sorted = Array.from(blocked.entries()).sort((a, b) => a[0].localeCompare(b[0]));
           if (sorted.length === 0) return [];
           const result: CalendarEvent[] = [];
-          let start = sorted[0];
-          let prev = sorted[0];
+          let start = sorted[0][0];
+          let prev = sorted[0][0];
+          let currentSource = sorted[0][1];
           for (let i = 1; i <= sorted.length; i++) {
             const curr = sorted[i];
             const prevDate = new Date(prev);
             const nextDay = new Date(prevDate);
             nextDay.setDate(nextDay.getDate() + 1);
-            if (i < sorted.length && curr === toDateStr(nextDay)) {
-              prev = curr;
+            // Continue range if next day is contiguous AND same source
+            if (i < sorted.length && curr[0] === toDateStr(nextDay) && curr[1] === currentSource) {
+              prev = curr[0];
             } else {
               const endDate = new Date(prev);
               endDate.setDate(endDate.getDate() + 1);
+              const sourceLabel = currentSource === "airbnb" ? "Airbnb" : currentSource === "vrbo" ? "VRBO" : "Direct";
               result.push({
-                id: `blocked-${property}-${start}`,
+                id: `blocked-${property}-${currentSource}-${start}`,
                 property,
-                guestName: "Airbnb/VRBO",
-                source: "Blocked",
+                guestName: sourceLabel,
+                source: sourceLabel as "Airbnb" | "VRBO" | "Direct",
                 checkIn: start,
                 checkOut: toDateStr(endDate),
               });
               if (i < sorted.length) {
-                start = curr;
-                prev = curr;
+                start = curr[0];
+                prev = curr[0];
+                currentSource = curr[1];
               }
             }
           }
           return result;
-        }
+        };
 
         const allEvents = [
           ...bookingEvents,
@@ -1904,14 +2074,16 @@ function CalendarTab({
                             key={ev.id}
                             title={`${ev.guestName} (${ev.source}) — ${ev.checkIn} to ${ev.checkOut}`}
                             className={cn(
-                              "text-[10px] leading-tight px-1 py-0.5 truncate text-white",
-                              ev.source === "Blocked"
-                                ? ev.property === "elevation"
-                                  ? "bg-[#0f1d3d]/40 text-[#0f1d3d]"
-                                  : "bg-[#0ea5e9]/40 text-[#0369a1]"
-                                : ev.property === "elevation"
-                                  ? "bg-[#0f1d3d]"
-                                  : "bg-[#0ea5e9]",
+                              "text-[10px] leading-tight px-1 py-0.5 truncate",
+                              // Direct bookings: solid colors
+                              ev.source === "Direct" && ev.property === "elevation" && "bg-[#0f1d3d] text-white",
+                              ev.source === "Direct" && ev.property === "turquoise" && "bg-[#0ea5e9] text-white",
+                              // Airbnb: warm orange tints
+                              ev.source === "Airbnb" && ev.property === "elevation" && "bg-amber-400 text-amber-900",
+                              ev.source === "Airbnb" && ev.property === "turquoise" && "bg-amber-300 text-amber-900",
+                              // VRBO: property-tinted
+                              ev.source === "VRBO" && ev.property === "elevation" && "bg-[#0f1d3d]/50 text-[#0f1d3d]",
+                              ev.source === "VRBO" && ev.property === "turquoise" && "bg-[#0ea5e9]/50 text-[#0369a1]",
                               isStart ? "rounded-l" : "",
                               dateStr ===
                                 toDateStr(
@@ -1983,14 +2155,13 @@ function CalendarTab({
                             <div
                               key={ev.id}
                               className={cn(
-                                "text-xs px-2 py-1 rounded text-white truncate",
-                                ev.source === "Blocked"
-                                  ? ev.property === "elevation"
-                                    ? "bg-[#0f1d3d]/40 text-[#0f1d3d]"
-                                    : "bg-[#0ea5e9]/40 text-[#0369a1]"
-                                  : ev.property === "elevation"
-                                    ? "bg-[#0f1d3d]"
-                                    : "bg-[#0ea5e9]"
+                                "text-xs px-2 py-1 rounded truncate",
+                                ev.source === "Direct" && ev.property === "elevation" && "bg-[#0f1d3d] text-white",
+                                ev.source === "Direct" && ev.property === "turquoise" && "bg-[#0ea5e9] text-white",
+                                ev.source === "Airbnb" && ev.property === "elevation" && "bg-amber-400 text-amber-900",
+                                ev.source === "Airbnb" && ev.property === "turquoise" && "bg-amber-300 text-amber-900",
+                                ev.source === "VRBO" && ev.property === "elevation" && "bg-[#0f1d3d]/50 text-[#0f1d3d]",
+                                ev.source === "VRBO" && ev.property === "turquoise" && "bg-[#0ea5e9]/50 text-[#0369a1]"
                               )}
                             >
                               {ev.guestName} · {ev.source} ·{" "}
@@ -2024,19 +2195,27 @@ function CalendarTab({
           <div className="flex flex-wrap gap-4 text-xs text-muted-foreground pt-2">
             <div className="flex items-center gap-1.5">
               <span className="inline-block h-3 w-3 rounded-sm bg-[#0f1d3d]" />
-              Elevation Estate (direct)
+              Elevation (Direct)
             </div>
             <div className="flex items-center gap-1.5">
               <span className="inline-block h-3 w-3 rounded-sm bg-[#0ea5e9]" />
-              Turquoise Tavern (direct)
+              Turquoise (Direct)
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="inline-block h-3 w-3 rounded-sm bg-[#0f1d3d]/40" />
-              Elevation (Airbnb/VRBO)
+              <span className="inline-block h-3 w-3 rounded-sm bg-amber-400" />
+              Elevation (Airbnb)
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="inline-block h-3 w-3 rounded-sm bg-[#0ea5e9]/40" />
-              Turquoise (Airbnb/VRBO)
+              <span className="inline-block h-3 w-3 rounded-sm bg-amber-300" />
+              Turquoise (Airbnb)
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block h-3 w-3 rounded-sm bg-[#0f1d3d]/50" />
+              Elevation (VRBO)
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block h-3 w-3 rounded-sm bg-[#0ea5e9]/50" />
+              Turquoise (VRBO)
             </div>
           </div>
         </>
@@ -3161,7 +3340,7 @@ export default function AdminPage() {
 
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
         {activeTab === "reservations" && (
-          <ReservationsTab bookings={bookings} loading={loading} />
+          <ReservationsTab bookings={bookings} loading={loading} authToken={authToken} />
         )}
         {activeTab === "calendar" && (
           <CalendarTab bookings={bookings} authToken={authToken} />

@@ -15,8 +15,10 @@ export async function GET(request: Request) {
   }
 
   try {
-    const blockedDates = await getBlockedDates(property);
-    return NextResponse.json({ blockedDates });
+    const blockedDatesWithSource = await getBlockedDates(property);
+    // Return both formats: string[] for backward compat, and full objects for calendar
+    const blockedDates = blockedDatesWithSource.map((d) => d.date);
+    return NextResponse.json({ blockedDates, blockedDatesWithSource });
   } catch (error) {
     console.error("Error fetching blocked dates:", error);
     return NextResponse.json(

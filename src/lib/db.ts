@@ -402,6 +402,28 @@ export async function initDb() {
     ON CONFLICT (id) DO NOTHING
   `;
 
+  // ─── Platform Reservations ──────────────────────────────────────────────────
+  await sql`
+    CREATE TABLE IF NOT EXISTS platform_reservations (
+      id TEXT PRIMARY KEY,
+      confirmation_code TEXT NOT NULL DEFAULT '',
+      source TEXT NOT NULL,
+      property TEXT NOT NULL,
+      guest_name TEXT NOT NULL DEFAULT '',
+      guest_email TEXT NOT NULL DEFAULT '',
+      guest_phone TEXT NOT NULL DEFAULT '',
+      check_in TEXT NOT NULL,
+      check_out TEXT NOT NULL,
+      nights INTEGER NOT NULL DEFAULT 0,
+      adults INTEGER NOT NULL DEFAULT 0,
+      children INTEGER NOT NULL DEFAULT 0,
+      earnings TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'confirmed',
+      booked_on TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL
+    )
+  `;
+
   // ─── Expenses ───────────────────────────────────────────────────────────────
   await sql`
     CREATE TABLE IF NOT EXISTS expenses (

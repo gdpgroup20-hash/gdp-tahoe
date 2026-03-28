@@ -7,15 +7,20 @@ export interface BlockedDateRange {
   source: string;
 }
 
-// iCal feed URLs from Lodgify (syncs Airbnb + VRBO bookings)
-const ICAL_FEEDS: Record<string, string[]> = {
+export interface BlockedDateWithSource {
+  date: string;
+  source: "airbnb" | "vrbo" | "direct";
+}
+
+// iCal feed URLs tagged with source
+const ICAL_FEEDS: Record<string, { url: string; source: "airbnb" | "vrbo" }[]> = {
   "elevation-estate": [
-    process.env.ICAL_ELEVATION_LODGIFY || "https://www.lodgify.com/f946c691-e7f0-4fd2-b6d1-acbfd1b40617.ics",
-    process.env.ICAL_ELEVATION_VRBO || "http://www.vrbo.com/icalendar/eae21f209cd845b79223ecfa1fa44f89.ics",
+    { url: process.env.ICAL_ELEVATION_LODGIFY || "https://www.lodgify.com/f946c691-e7f0-4fd2-b6d1-acbfd1b40617.ics", source: "airbnb" },
+    { url: process.env.ICAL_ELEVATION_VRBO || "http://www.vrbo.com/icalendar/eae21f209cd845b79223ecfa1fa44f89.ics", source: "vrbo" },
   ],
   turquoise: [
-    process.env.ICAL_TURQUOISE_LODGIFY || "https://www.lodgify.com/6cf30c20-e52f-42b8-b2ad-d8e94108a3a5.ics",
-    process.env.ICAL_TURQUOISE_VRBO || "http://www.vrbo.com/icalendar/8e48b069b0e64f259c5f04f9ffaa3f4d.ics",
+    { url: process.env.ICAL_TURQUOISE_LODGIFY || "https://www.lodgify.com/6cf30c20-e52f-42b8-b2ad-d8e94108a3a5.ics", source: "airbnb" },
+    { url: process.env.ICAL_TURQUOISE_VRBO || "http://www.vrbo.com/icalendar/8e48b069b0e64f259c5f04f9ffaa3f4d.ics", source: "vrbo" },
   ],
 };
 
@@ -39,22 +44,25 @@ function parseIcal(text: string): { start: Date; end: Date }[] {
 }
 
 /**
- * Fetch iCal feeds for a property and return blocked dates.
+ * Fetch iCal feeds for a property and return blocked dates with source.
  */
-async function getIcalBlockedDates(propertySlug: string): Promise<Set<string>> {
-  const blocked = new Set<string>();
+async function getIcalBlockedDates(propertySlug: string): Promise<BlockedDateWithSource[]> {
+  const results: BlockedDateWithSource[] = [];
   const feeds = ICAL_FEEDS[propertySlug] || [];
 
-  for (const url of feeds) {
+  for (const feed of feeds) {
     try {
-      const res = await fetch(url, { next: { revalidate: 3600 } }); // cache 1 hour
+      const res = await fetch(feed.url, { next: { revalidate: 3600 } }); // cache 1 hour
       if (!res.ok) continue;
       const text = await res.text();
       const ranges = parseIcal(text);
       for (const { start, end } of ranges) {
         const current = new Date(start);
         while (current < end) {
-          blocked.add(current.toISOString().split("T")[0]);
+          results.push({
+            date: current.toISOString().split("T")[0],
+            source: feed.source,
+          });
           current.setDate(current.getDate() + 1);
         }
       }
@@ -62,14 +70,22 @@ async function getIcalBlockedDates(propertySlug: string): Promise<Set<string>> {
       // Silently fail — calendar will show dates as available if feed is unreachable
     }
   }
-  return blocked;
+  return results;
 }
 
 export async function getBlockedDates(
   propertySlug: string
-): Promise<string[]> {
-  // Fetch from iCal feeds (Lodgify syncs Airbnb + VRBO)
-  const blocked = await getIcalBlockedDates(propertySlug);
+): Promise<BlockedDateWithSource[]> {
+  // Fetch from iCal feeds with source tags
+  const icalDates = await getIcalBlockedDates(propertySlug);
+
+  // Use a map to deduplicate by date (first source wins)
+  const dateMap = new Map<string, BlockedDateWithSource>();
+  for (const entry of icalDates) {
+    if (!dateMap.has(entry.date)) {
+      dateMap.set(entry.date, entry);
+    }
+  }
 
   // Also add dates from direct bookings on staygdptahoe.com
   try {
@@ -80,7 +96,10 @@ export async function getBlockedDates(
       const end = new Date(booking.checkOut);
       const current = new Date(start);
       while (current < end) {
-        blocked.add(current.toISOString().split("T")[0]);
+        const dateStr = current.toISOString().split("T")[0];
+        if (!dateMap.has(dateStr)) {
+          dateMap.set(dateStr, { date: dateStr, source: "direct" });
+        }
         current.setDate(current.getDate() + 1);
       }
     }
@@ -88,7 +107,7 @@ export async function getBlockedDates(
     // DB unavailable — iCal data still works
   }
 
-  return Array.from(blocked).sort();
+  return Array.from(dateMap.values()).sort((a, b) => a.date.localeCompare(b.date));
 }
 
 export function calculatePrice(
