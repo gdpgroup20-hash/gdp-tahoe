@@ -10,10 +10,10 @@ export interface BlockedDateRange {
 // iCal feed URLs from Lodgify (syncs Airbnb + VRBO bookings)
 const ICAL_FEEDS: Record<string, string[]> = {
   "elevation-estate": [
-    process.env.ICAL_ELEVATION_URL_1 || "https://www.lodgify.com/6cf30c20-e52f-42b8-b2ad-d8e94108a3a5.ics",
+    process.env.ICAL_ELEVATION_URL_1 || "https://www.lodgify.com/f946c691-e7f0-4fd2-b6d1-acbfd1b40617.ics",
   ],
   turquoise: [
-    process.env.ICAL_TURQUOISE_URL_1 || "https://www.lodgify.com/f946c691-e7f0-4fd2-b6d1-acbfd1b40617.ics",
+    process.env.ICAL_TURQUOISE_URL_1 || "https://www.lodgify.com/6cf30c20-e52f-42b8-b2ad-d8e94108a3a5.ics",
   ],
 };
 
