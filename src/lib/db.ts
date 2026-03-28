@@ -128,4 +128,71 @@ export async function initDb() {
     VALUES ('camp-staycation-2026', 'Staycation TV Feature', 'Elevation Estate is about to be on TV + a gift for you', 'draft', 0, '2026-03-23')
     ON CONFLICT (id) DO NOTHING
   `;
+
+  // ─── Service contacts ───────────────────────────────────────────────────────
+  await sql`
+    CREATE TABLE IF NOT EXISTS service_categories (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    )
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS service_vendors (
+      id TEXT PRIMARY KEY,
+      category_id TEXT NOT NULL,
+      company_name TEXT NOT NULL DEFAULT '',
+      website TEXT NOT NULL DEFAULT '',
+      notes TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL
+    )
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS service_contacts (
+      id TEXT PRIMARY KEY,
+      vendor_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL DEFAULT '',
+      phone TEXT NOT NULL DEFAULT '',
+      role TEXT NOT NULL DEFAULT ''
+    )
+  `;
+  // Seed default categories
+  await sql`
+    INSERT INTO service_categories (id, name, sort_order) VALUES
+      ('cat-hvac', 'HVAC', 1),
+      ('cat-landscaping', 'Landscaping', 2),
+      ('cat-electrician', 'Electrician', 3),
+      ('cat-cleaning', 'Cleaning', 4),
+      ('cat-windows', 'Windows', 5),
+      ('cat-pest', 'Pest Control', 6)
+    ON CONFLICT (id) DO NOTHING
+  `;
+  // Seed known vendors
+  await sql`
+    INSERT INTO service_vendors (id, category_id, company_name, website, notes, created_at)
+    VALUES ('vendor-athyme', 'cat-landscaping', 'A Thyme to Plant', 'athymetoplanttahoe.com', '', '2026-03-27')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_vendors (id, category_id, company_name, website, notes, created_at)
+    VALUES ('vendor-mxb', 'cat-windows', 'MXB Windows', 'mxbwindows.net', '', '2026-03-27')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  // Seed known contacts
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-shana', 'vendor-athyme', 'Shana Behan', 'shana@athymetoplanttahoe.com', '530-448-1440', '')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-juan', 'vendor-athyme', 'Juan Munoz', '', '530-414-6501', '')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-michael', 'vendor-mxb', 'Michael Brown', 'mxbwindows@gmail.com', '530-448-9001', '')
+    ON CONFLICT (id) DO NOTHING
+  `;
 }

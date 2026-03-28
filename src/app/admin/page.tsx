@@ -28,7 +28,11 @@ import {
   Send,
   ArrowLeft,
   Loader2,
+  Phone,
+  ExternalLink,
+  UserPlus,
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -1952,9 +1956,308 @@ function CalendarTab({
   );
 }
 
+// ─── Contacts Tab ───────────────────────────────────────────────────────────
+
+interface SvcContact {
+  id: string;
+  vendorId: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: string;
+}
+
+interface SvcVendor {
+  id: string;
+  categoryId: string;
+  companyName: string;
+  website: string;
+  notes: string;
+  createdAt: string;
+  contacts: SvcContact[];
+}
+
+interface SvcCategory {
+  id: string;
+  name: string;
+  sortOrder: number;
+  vendors: SvcVendor[];
+}
+
+function ContactsTab({ authToken }: { authToken: string }) {
+  const [categories, setCategories] = useState<SvcCategory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingVendor, setEditingVendor] = useState<string | null>(null);
+  const [vendorForm, setVendorForm] = useState({ companyName: "", website: "", notes: "" });
+  const [addingVendorTo, setAddingVendorTo] = useState<string | null>(null);
+  const [newVendor, setNewVendor] = useState({ companyName: "", website: "", notes: "" });
+  const [addingContactTo, setAddingContactTo] = useState<string | null>(null);
+  const [contactForm, setContactForm] = useState({ name: "", email: "", phone: "", role: "" });
+
+  const headers = { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" };
+
+  const fetchCategories = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/contacts", { headers: { Authorization: `Bearer ${authToken}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setCategories(data.categories);
+      }
+    } catch (e) {
+      console.error("Failed to fetch contacts:", e);
+    } finally {
+      setLoading(false);
+    }
+  }, [authToken]);
+
+  useEffect(() => { fetchCategories(); }, [fetchCategories]);
+
+  const applyResult = (data: { categories: SvcCategory[] }) => {
+    setCategories(data.categories);
+  };
+
+  const saveVendor = async (vendor: SvcVendor) => {
+    const res = await fetch("/api/admin/contacts/vendors", {
+      method: "POST", headers,
+      body: JSON.stringify({ id: vendor.id, categoryId: vendor.categoryId, ...vendorForm }),
+    });
+    if (res.ok) applyResult(await res.json());
+    setEditingVendor(null);
+  };
+
+  const addVendor = async (categoryId: string) => {
+    const res = await fetch("/api/admin/contacts/vendors", {
+      method: "POST", headers,
+      body: JSON.stringify({ categoryId, ...newVendor }),
+    });
+    if (res.ok) applyResult(await res.json());
+    setAddingVendorTo(null);
+    setNewVendor({ companyName: "", website: "", notes: "" });
+  };
+
+  const removeVendor = async (id: string) => {
+    const res = await fetch("/api/admin/contacts/vendors", {
+      method: "DELETE", headers,
+      body: JSON.stringify({ id }),
+    });
+    if (res.ok) applyResult(await res.json());
+  };
+
+  const addContact = async (vendorId: string) => {
+    const res = await fetch("/api/admin/contacts/contacts", {
+      method: "POST", headers,
+      body: JSON.stringify({ vendorId, ...contactForm }),
+    });
+    if (res.ok) applyResult(await res.json());
+    setAddingContactTo(null);
+    setContactForm({ name: "", email: "", phone: "", role: "" });
+  };
+
+  const removeContact = async (id: string) => {
+    const res = await fetch("/api/admin/contacts/contacts", {
+      method: "DELETE", headers,
+      body: JSON.stringify({ id }),
+    });
+    if (res.ok) applyResult(await res.json());
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      {categories.map((cat) => (
+        <div key={cat.id}>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{cat.name}</h3>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => { setAddingVendorTo(addingVendorTo === cat.id ? null : cat.id); setNewVendor({ companyName: "", website: "", notes: "" }); }}
+            >
+              <Plus className="h-3 w-3 mr-1" /> Add Vendor
+            </Button>
+          </div>
+
+          {addingVendorTo === cat.id && (
+            <Card className="mb-3 border-dashed">
+              <CardContent className="pt-4 space-y-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <Label className="text-xs">Company Name</Label>
+                    <Input value={newVendor.companyName} onChange={(e) => setNewVendor({ ...newVendor, companyName: e.target.value })} placeholder="Company name" className="mt-1" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Website</Label>
+                    <Input value={newVendor.website} onChange={(e) => setNewVendor({ ...newVendor, website: e.target.value })} placeholder="example.com" className="mt-1" />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs">Notes</Label>
+                  <Textarea value={newVendor.notes} onChange={(e) => setNewVendor({ ...newVendor, notes: e.target.value })} placeholder="Optional notes" className="mt-1" rows={2} />
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" className="h-7 text-xs bg-[#0f1d3d] hover:bg-[#1a2d5c]" onClick={() => addVendor(cat.id)} disabled={!newVendor.companyName.trim()}>
+                    <Check className="h-3 w-3 mr-1" /> Save
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setAddingVendorTo(null)}>
+                    <X className="h-3 w-3 mr-1" /> Cancel
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {cat.vendors.length === 0 && addingVendorTo !== cat.id && (
+            <p
+              className="text-sm text-muted-foreground italic cursor-pointer hover:text-foreground py-2"
+              onClick={() => { setAddingVendorTo(cat.id); setNewVendor({ companyName: "", website: "", notes: "" }); }}
+            >
+              No vendor added yet — click to add
+            </p>
+          )}
+
+          <div className="space-y-3">
+            {cat.vendors.map((vendor) => (
+              <Card key={vendor.id}>
+                <CardContent className="pt-4">
+                  {editingVendor === vendor.id ? (
+                    <div className="space-y-3">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div>
+                          <Label className="text-xs">Company Name</Label>
+                          <Input value={vendorForm.companyName} onChange={(e) => setVendorForm({ ...vendorForm, companyName: e.target.value })} className="mt-1" />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Website</Label>
+                          <Input value={vendorForm.website} onChange={(e) => setVendorForm({ ...vendorForm, website: e.target.value })} className="mt-1" />
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-xs">Notes</Label>
+                        <Textarea value={vendorForm.notes} onChange={(e) => setVendorForm({ ...vendorForm, notes: e.target.value })} className="mt-1" rows={2} />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" className="h-7 text-xs bg-[#0f1d3d] hover:bg-[#1a2d5c]" onClick={() => saveVendor(vendor)}>
+                          <Check className="h-3 w-3 mr-1" /> Save
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingVendor(null)}>
+                          <X className="h-3 w-3 mr-1" /> Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-base font-bold">{vendor.companyName}</span>
+                            <button
+                              className="text-muted-foreground hover:text-foreground"
+                              onClick={() => { setEditingVendor(vendor.id); setVendorForm({ companyName: vendor.companyName, website: vendor.website, notes: vendor.notes }); }}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                          {vendor.website && (
+                            <a
+                              href={vendor.website.startsWith("http") ? vendor.website : `https://${vendor.website}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-600 hover:underline flex items-center gap-1 mt-0.5"
+                            >
+                              {vendor.website} <ExternalLink className="h-3 w-3" />
+                            </a>
+                          )}
+                          {vendor.notes && <p className="text-xs text-muted-foreground mt-1">{vendor.notes}</p>}
+                        </div>
+                        <button className="text-muted-foreground hover:text-red-600" onClick={() => removeVendor(vendor.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      <Separator className="my-3" />
+
+                      <div className="space-y-2">
+                        {vendor.contacts.map((contact) => (
+                          <div key={contact.id} className="flex items-center justify-between text-sm py-1">
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <span className="font-medium">{contact.name}</span>
+                              {contact.email && (
+                                <a href={`mailto:${contact.email}`} className="text-blue-600 hover:underline text-xs">{contact.email}</a>
+                              )}
+                              {contact.phone && (
+                                <a href={`tel:${contact.phone}`} className="text-muted-foreground hover:text-foreground text-xs">{contact.phone}</a>
+                              )}
+                              {contact.role && <Badge variant="secondary" className="text-[10px] h-5">{contact.role}</Badge>}
+                            </div>
+                            <button className="text-muted-foreground hover:text-red-600 ml-2 shrink-0" onClick={() => removeContact(contact.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ))}
+
+                        {addingContactTo === vendor.id ? (
+                          <div className="border rounded-md p-3 mt-2 space-y-2">
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              <div>
+                                <Label className="text-xs">Name</Label>
+                                <Input value={contactForm.name} onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })} placeholder="Contact name" className="mt-1 h-8 text-sm" />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Role</Label>
+                                <Input value={contactForm.role} onChange={(e) => setContactForm({ ...contactForm, role: e.target.value })} placeholder="e.g. Owner, Technician" className="mt-1 h-8 text-sm" />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Email</Label>
+                                <Input value={contactForm.email} onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })} placeholder="email@example.com" className="mt-1 h-8 text-sm" />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Phone</Label>
+                                <Input value={contactForm.phone} onChange={(e) => setContactForm({ ...contactForm, phone: e.target.value })} placeholder="530-555-0000" className="mt-1 h-8 text-sm" />
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button size="sm" className="h-7 text-xs bg-[#0f1d3d] hover:bg-[#1a2d5c]" onClick={() => addContact(vendor.id)} disabled={!contactForm.name.trim()}>
+                                <Check className="h-3 w-3 mr-1" /> Save
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setAddingContactTo(null)}>
+                                <X className="h-3 w-3 mr-1" /> Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs text-muted-foreground mt-1"
+                            onClick={() => { setAddingContactTo(vendor.id); setContactForm({ name: "", email: "", phone: "", role: "" }); }}
+                          >
+                            <UserPlus className="h-3 w-3 mr-1" /> Add Contact
+                          </Button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Main Admin Page ─────────────────────────────────────────────────────────
 
-type Tab = "reservations" | "calendar" | "pricing" | "maintenance" | "campaigns" | "settings";
+type Tab = "reservations" | "calendar" | "pricing" | "maintenance" | "campaigns" | "contacts" | "settings";
 
 export default function AdminPage() {
   const [password, setPassword] = useState("");
@@ -2075,6 +2378,7 @@ export default function AdminPage() {
     { id: "pricing", label: "Pricing", icon: <DollarSign className="h-4 w-4" /> },
     { id: "maintenance", label: "Maintenance", icon: <Wrench className="h-4 w-4" /> },
     { id: "campaigns", label: "Campaigns", icon: <Send className="h-4 w-4" /> },
+    { id: "contacts", label: "Contacts", icon: <Phone className="h-4 w-4" /> },
     { id: "settings", label: "Settings", icon: <Settings className="h-4 w-4" /> },
   ];
 
@@ -2141,6 +2445,7 @@ export default function AdminPage() {
         {activeTab === "pricing" && <PricingTab authToken={authToken} />}
         {activeTab === "maintenance" && <MaintenanceTab authToken={authToken} />}
         {activeTab === "campaigns" && <CampaignsTab authToken={authToken} />}
+        {activeTab === "contacts" && <ContactsTab authToken={authToken} />}
         {activeTab === "settings" && <SettingsTab />}
       </main>
     </div>
