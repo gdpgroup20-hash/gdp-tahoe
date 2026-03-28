@@ -2058,14 +2058,28 @@ function ContactsTab({ authToken }: { authToken: string }) {
   const togglePublic = async (id: string, isPublic: boolean) => {
     // Optimistic update immediately
     setCategories(prev => prev.map(c => c.id === id ? { ...c, isPublic } : c));
-    const res = await fetch("/api/admin/contacts", {
-      method: "PATCH", headers,
-      body: JSON.stringify({ id, isPublic }),
-    });
-    if (res.ok) {
-      applyResult(await res.json());
-    } else {
-      // Revert on failure
+    try {
+      const res = await fetch("/api/admin/contacts", {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ id, isPublic: isPublic }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Re-map isPublic from server response, handling both boolean and integer
+        const remapped = {
+          ...data,
+          categories: data.categories?.map((c: SvcCategory & { isPublic?: boolean | number }) => ({
+            ...c,
+            isPublic: c.isPublic === true || c.isPublic === 1,
+          })) ?? data.categories,
+        };
+        applyResult(remapped);
+      } else {
+        // Revert on failure
+        setCategories(prev => prev.map(c => c.id === id ? { ...c, isPublic: !isPublic } : c));
+      }
+    } catch {
       setCategories(prev => prev.map(c => c.id === id ? { ...c, isPublic: !isPublic } : c));
     }
   };
