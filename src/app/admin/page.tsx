@@ -2468,6 +2468,7 @@ const EXPENSE_PROPERTY_OPTIONS = ["", "Elevation Estate", "Turquoise Tavern"];
 
 function ExpensesTab({ authToken }: { authToken: string }) {
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
+  const [sharedCategories, setSharedCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Partial<ExpenseRow>>({});
@@ -2477,15 +2478,22 @@ function ExpensesTab({ authToken }: { authToken: string }) {
   const [propertyFilter, setPropertyFilter] = useState<string>("All");
   const [search, setSearch] = useState("");
   const PAGE_SIZE = 50;
+  const headers = { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" };
 
   const fetchExpenses = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/expenses", {
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
+      const [expRes, catRes] = await Promise.all([
+        fetch("/api/admin/expenses", { headers: { Authorization: `Bearer ${authToken}` } }),
+        fetch("/api/admin/contacts", { headers: { Authorization: `Bearer ${authToken}` } }),
+      ]);
+      if (expRes.ok) {
+        const data = await expRes.json();
         setExpenses(data.expenses ?? []);
+      }
+      if (catRes.ok) {
+        const data = await catRes.json();
+        const names = (data.categories ?? []).map((c: { name: string }) => c.name).sort();
+        setSharedCategories(names);
       }
     } catch {
       // silently fail
@@ -2498,9 +2506,20 @@ function ExpensesTab({ authToken }: { authToken: string }) {
     fetchExpenses();
   }, [fetchExpenses]);
 
+  const addCategoryToShared = async (name: string) => {
+    const res = await fetch("/api/admin/contacts", {
+      method: "POST", headers,
+      body: JSON.stringify({ name }),
+    });
+    if (res.ok) {
+      setSharedCategories(prev => [...prev, name].sort());
+    }
+  };
+
   // Derived data
   const years = Array.from(new Set(expenses.map((e) => e.date.substring(0, 4)))).sort().reverse();
-  const categories = Array.from(new Set(expenses.map((e) => e.category))).sort();
+  // Merge shared categories with any expense-only categories for the filter dropdown
+  const categories = Array.from(new Set([...sharedCategories, ...expenses.map((e) => e.category)])).sort();
 
   const filtered = expenses.filter((e) => {
     if (yearFilter !== "All Time" && !e.date.startsWith(yearFilter)) return false;
@@ -2753,15 +2772,19 @@ function ExpensesTab({ authToken }: { authToken: string }) {
                             className="h-8 text-sm"
                             onKeyDown={(ev) => {
                               if (ev.key === "Enter" && ev.currentTarget.value.trim()) {
-                                setEditDraft((d) => ({ ...d, category: ev.currentTarget.value.trim() }));
+                                const val = ev.currentTarget.value.trim();
+                                addCategoryToShared(val);
+                                setEditDraft((d) => ({ ...d, category: val }));
                               }
                               if (ev.key === "Escape") {
                                 setEditDraft((d) => ({ ...d, category: e.category }));
                               }
                             }}
                             onBlur={(ev) => {
-                              if (ev.target.value.trim()) {
-                                setEditDraft((d) => ({ ...d, category: ev.target.value.trim() }));
+                              const val = ev.target.value.trim();
+                              if (val) {
+                                addCategoryToShared(val);
+                                setEditDraft((d) => ({ ...d, category: val }));
                               } else {
                                 setEditDraft((d) => ({ ...d, category: e.category }));
                               }
