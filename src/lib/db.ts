@@ -297,11 +297,115 @@ export async function initDb() {
     ON CONFLICT (id) DO NOTHING
   `;
 
-  // Relax category + vendors
+  // Relax + Dining + Hike categories
   await sql`
     INSERT INTO service_categories (id, name, sort_order, is_public) VALUES
       ('cat-relax', 'Relax', 20, 1),
-      ('cat-dining', 'Lakeside Dining', 21, 1)
+      ('cat-dining', 'Lakeside Dining', 21, 1),
+      ('cat-hike', 'Hiking', 22, 1)
+    ON CONFLICT (id) DO NOTHING
+  `;
+
+  // Hiking spots
+  await sql`
+    INSERT INTO service_vendors (id, category_id, company_name, website, notes, created_at)
+    VALUES ('vendor-hike-waterfalls', 'cat-hike', 'Tahoe Waterfalls', 'tahoerim.org', 'Due to an abundant amount of spring runoff, there are quite a few incredible waterfalls in Lake Tahoe. Best time to visit is late spring and early summer when they are at their peak. Well-known waterfalls such as Eagle Falls and Glen Alpine Falls are easily accessible via a short hike. Also check out the waterfalls on the Tahoe Rim Trail, a 165-mile loop around Lake Tahoe.', '2026-03-28')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-hike-eaglefalls', 'vendor-hike-waterfalls', 'Eagle Falls Trail', '', '', 'https://www.fs.usda.gov/recarea/ltbmu/recarea/?recid=11783')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-hike-tahoewaterfalls', 'vendor-hike-waterfalls', 'Tahoe Rim Trail Waterfalls', '', '', 'https://tahoerimtrail.org/trail-conditions/')
+    ON CONFLICT (id) DO NOTHING
+  `;
+
+  await sql`
+    INSERT INTO service_vendors (id, category_id, company_name, website, notes, created_at)
+    VALUES ('vendor-hike-emerald', 'cat-hike', 'Emerald Bay', 'parks.ca.gov/?page_id=507', 'One of the most iconic spots in Lake Tahoe with some of the most beautiful views of the lake. Enjoy the Emerald Bay Overlook or hike down to the beach. From here, check out Vikingsholm Castle, hike to Lower Eagle Falls, pick up the Rubicon Trail, or rent a paddleboard and paddle out to Fannette Island. The Eagle Lake Trail follows Eagle Creek past Eagle Falls to Eagle Lake.', '2026-03-28')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-hike-rubicon', 'vendor-hike-emerald', 'Rubicon Trail', '', '', 'https://www.alltrails.com/trail/us/california/rubicon-trail')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-hike-eaglelake', 'vendor-hike-emerald', 'Eagle Lake Trail', '', '', 'https://www.alltrails.com/trail/us/california/eagle-lake-trail')
+    ON CONFLICT (id) DO NOTHING
+  `;
+
+  await sql`
+    INSERT INTO service_vendors (id, category_id, company_name, website, notes, created_at)
+    VALUES ('vendor-hike-stateline', 'cat-hike', 'State Line Fire Lookout', 'parks.ca.gov', 'Stateline Fire Lookout in Kings Beach is a short hike that offers stunning views overlooking Crystal Bay and the north shore. Gets its name from an old fire lookout tower from the 1930s. Numerous educational plaques with facts about Lake Tahoe and its logging history.', '2026-03-28')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-hike-stateline', 'vendor-hike-stateline', 'Trail Info', '', '', 'https://www.alltrails.com/trail/us/california/stateline-fire-lookout-trail')
+    ON CONFLICT (id) DO NOTHING
+  `;
+
+  await sql`
+    INSERT INTO service_vendors (id, category_id, company_name, website, notes, created_at)
+    VALUES ('vendor-hike-monkeyrock', 'cat-hike', 'Monkey Rock', 'alltrails.com', 'A relatively short but steep hike along the Flume Trail offering stunning views over Incline Village and Tahoe''s east shore. The trailhead is located behind Tunnel Creek Cafe on Highway 28 in Incline Village.', '2026-03-28')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-hike-monkeyrock', 'vendor-hike-monkeyrock', 'Monkey Rock Trail', '', '', 'https://www.alltrails.com/trail/us/nevada/monkey-rock-trail')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-tunnelcreekcafe', 'vendor-hike-monkeyrock', 'Tunnel Creek Cafe (Trailhead)', '', '', 'https://www.tunnelcreekcafe.com')
+    ON CONFLICT (id) DO NOTHING
+  `;
+
+  await sql`
+    INSERT INTO service_vendors (id, category_id, company_name, website, notes, created_at)
+    VALUES ('vendor-hike-caverock', 'cat-hike', 'Cave Rock', 'parks.ca.gov', 'A short hike with beautiful views over South Lake Tahoe — also a prime spot to catch the sunset. The trail takes about 10 minutes and includes some light bouldering to reach the highest viewpoint. Stunning 180-degree views overlooking South Lake Tahoe. Trailhead on Cave Rock Drive right off Highway 50.', '2026-03-28')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-hike-caverock', 'vendor-hike-caverock', 'Cave Rock Trail', '', '', 'https://www.alltrails.com/trail/us/nevada/cave-rock-trail')
+    ON CONFLICT (id) DO NOTHING
+  `;
+
+  await sql`
+    INSERT INTO service_vendors (id, category_id, company_name, website, notes, created_at)
+    VALUES ('vendor-hike-sandharbor', 'cat-hike', 'Sand Harbor Overlook', 'parks.ca.gov', 'Located on Tahoe''s east shore, Sand Harbor Overlook is a short and easy little trail that leads to a beautiful lookout over the north side of Sand Harbor. Can be accessed off State Route 28 or directly from the East Shore Bike Trail.', '2026-03-28')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-hike-sandharbor', 'vendor-hike-sandharbor', 'Sand Harbor Overlook Trail', '', '', 'https://www.alltrails.com/trail/us/nevada/sand-harbor-overlook-trail')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-hike-eastshore', 'vendor-hike-sandharbor', 'East Shore Bike Trail', '', '', 'https://www.tahoeeastshore.com')
+    ON CONFLICT (id) DO NOTHING
+  `;
+
+  await sql`
+    INSERT INTO service_vendors (id, category_id, company_name, website, notes, created_at)
+    VALUES ('vendor-hike-spoonerlake', 'cat-hike', 'Spooner Lake / North Canyon Road', 'parks.ca.gov', 'The trails around Spooner Lake are known for their spectacular displays of fall color. North Canyon Road is a picturesque trail lined on both sides with brilliant yellow and orange aspen trees — the fall colors hit you right at the start. For a longer hike, check out Marlette Lake trail from Spooner Lake.', '2026-03-28')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-hike-spoonerlake', 'vendor-hike-spoonerlake', 'Spooner Lake Trail', '', '', 'https://www.alltrails.com/trail/us/nevada/spooner-lake-loop')
+    ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO service_contacts (id, vendor_id, name, email, phone, role)
+    VALUES ('contact-hike-marlette', 'vendor-hike-spoonerlake', 'Marlette Lake Trail', '', '', 'https://www.alltrails.com/trail/us/nevada/marlette-lake-trail')
     ON CONFLICT (id) DO NOTHING
   `;
 

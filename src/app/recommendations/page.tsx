@@ -110,12 +110,27 @@ export default async function RecommendationsPage() {
                     </p>
                   )}
 
-                  {/* Contacts — phone numbers only */}
-                  {vendor.contacts.some((c) => c.phone) && (
+                  {/* Contacts — phone numbers + trail links */}
+                  {vendor.contacts.some((c) => c.phone || c.role?.startsWith("http")) && (
                     <div className="mt-4 space-y-1.5">
-                      {vendor.contacts
-                        .filter((c) => c.phone)
-                        .map((contact) => (
+                      {vendor.contacts.map((contact) => {
+                        const isLink = contact.role?.startsWith("http");
+                        if (isLink) {
+                          return (
+                            <div key={contact.id}>
+                              <a
+                                href={contact.role}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-sm text-[#0f1d3d]/70 hover:text-[#0f1d3d] underline underline-offset-2 transition-colors"
+                              >
+                                🗺️ {contact.name}
+                              </a>
+                            </div>
+                          );
+                        }
+                        if (!contact.phone) return null;
+                        return (
                           <div key={contact.id} className="flex items-center gap-2 text-sm">
                             <span className="text-gray-400 text-xs">📞</span>
                             <a
@@ -128,7 +143,8 @@ export default async function RecommendationsPage() {
                               {formatPhone(contact.phone)}
                             </a>
                           </div>
-                        ))}
+                        );
+                      })}
                     </div>
                   )}
 
