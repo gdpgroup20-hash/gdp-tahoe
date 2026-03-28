@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCategories } from "@/lib/contacts";
+import { getCategories, createCategory } from "@/lib/contacts";
 
 export const dynamic = "force-dynamic";
 
@@ -20,5 +20,20 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error("Error fetching contacts:", error);
     return NextResponse.json({ error: "Failed to fetch contacts" }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request) {
+  if (!checkAuth(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  try {
+    const { name } = await request.json();
+    if (!name?.trim()) return NextResponse.json({ error: "Name required" }, { status: 400 });
+    const category = await createCategory(name.trim());
+    return NextResponse.json({ category });
+  } catch (error) {
+    console.error("Error creating category:", error);
+    return NextResponse.json({ error: "Failed to create category" }, { status: 500 });
   }
 }

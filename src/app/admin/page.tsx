@@ -1993,6 +1993,9 @@ function ContactsTab({ authToken }: { authToken: string }) {
   const [newVendor, setNewVendor] = useState({ companyName: "", website: "", notes: "" });
   const [addingContactTo, setAddingContactTo] = useState<string | null>(null);
   const [contactForm, setContactForm] = useState({ name: "", email: "", phone: "", role: "" });
+  const [newCatName, setNewCatName] = useState("");
+  const [addingCat, setAddingCat] = useState(false);
+  const [showCatForm, setShowCatForm] = useState(false);
 
   const headers = { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" };
 
@@ -2069,8 +2072,51 @@ function ContactsTab({ authToken }: { authToken: string }) {
     );
   }
 
+  const handleAddCategory = async () => {
+    if (!newCatName.trim()) return;
+    setAddingCat(true);
+    const res = await fetch("/api/admin/contacts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+      body: JSON.stringify({ name: newCatName.trim() }),
+    });
+    if (res.ok) {
+      await fetchCategories();
+      setNewCatName("");
+      setShowCatForm(false);
+    }
+    setAddingCat(false);
+  };
+
   return (
     <div className="space-y-8">
+      {/* Add Category */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">{categories.length} service categories, sorted A–Z</p>
+        {showCatForm ? (
+          <div className="flex items-center gap-2">
+            <Input
+              value={newCatName}
+              onChange={(e) => setNewCatName(e.target.value)}
+              placeholder="Category name..."
+              className="h-8 w-48 text-sm"
+              onKeyDown={(e) => e.key === "Enter" && handleAddCategory()}
+              autoFocus
+            />
+            <Button size="sm" onClick={handleAddCategory} disabled={addingCat} className="h-8 bg-[#0f1d3d] hover:bg-[#1a2d5c]">
+              {addingCat ? <Loader2 className="h-3 w-3 animate-spin" /> : "Add"}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => { setShowCatForm(false); setNewCatName(""); }} className="h-8">
+              Cancel
+            </Button>
+          </div>
+        ) : (
+          <Button size="sm" variant="outline" onClick={() => setShowCatForm(true)} className="h-8">
+            <Plus className="h-3 w-3 mr-1" /> Add Category
+          </Button>
+        )}
+      </div>
+
       {categories.map((cat) => (
         <div key={cat.id}>
           <div className="flex items-center justify-between mb-3">

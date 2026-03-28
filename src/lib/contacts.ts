@@ -26,11 +26,23 @@ export interface ServiceCategory {
   vendors: ServiceVendor[];
 }
 
+export async function createCategory(name: string): Promise<ServiceCategory> {
+  await initDb();
+  const sql = getDb();
+  const id = `cat-${name.toLowerCase().replace(/[^a-z0-9]/g, "-")}-${Date.now()}`;
+  await sql`
+    INSERT INTO service_categories (id, name, sort_order)
+    VALUES (${id}, ${name}, 99)
+    ON CONFLICT (id) DO NOTHING
+  `;
+  return { id, name, sortOrder: 99, vendors: [] };
+}
+
 export async function getCategories(): Promise<ServiceCategory[]> {
   await initDb();
   const sql = getDb();
 
-  const categories = await sql`SELECT id, name, sort_order FROM service_categories ORDER BY sort_order`;
+  const categories = await sql`SELECT id, name, sort_order FROM service_categories ORDER BY name ASC`;
   const vendors = await sql`SELECT id, category_id, company_name, website, notes, created_at FROM service_vendors ORDER BY company_name`;
   const contacts = await sql`SELECT id, vendor_id, name, email, phone, role FROM service_contacts ORDER BY name`;
 
