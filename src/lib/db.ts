@@ -196,6 +196,9 @@ export async function initDb() {
     ON CONFLICT (id) DO NOTHING
   `;
 
+  // Add is_public column to service_categories
+  await sql`ALTER TABLE service_categories ADD COLUMN IF NOT EXISTS is_public INTEGER NOT NULL DEFAULT 0`;
+
   // Guest recommendation categories + vendors
   await sql`
     INSERT INTO service_categories (id, name, sort_order) VALUES
@@ -205,6 +208,9 @@ export async function initDb() {
       ('cat-concierge', 'Concierge', 13)
     ON CONFLICT (id) DO NOTHING
   `;
+
+  // Mark guest-facing categories as public by default
+  await sql`UPDATE service_categories SET is_public = 1 WHERE id IN ('cat-watersports', 'cat-chef', 'cat-adventure', 'cat-concierge')`;
 
   // North Tahoe Watersports
   await sql`

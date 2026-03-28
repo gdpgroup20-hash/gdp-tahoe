@@ -8,6 +8,7 @@ const footerLinks = [
   { label: "FAQ", href: "/faq" },
   { label: "Book", href: "/book" },
   { label: "Contact", href: "/contact" },
+  { label: "Recommendations", href: "/recommendations" },
 ];
 
 const socialLinks = [

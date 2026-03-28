@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCategories, createCategory, renameCategory, deleteCategory } from "@/lib/contacts";
+import { getCategories, createCategory, renameCategory, deleteCategory, updateCategoryVisibility } from "@/lib/contacts";
 
 export const dynamic = "force-dynamic";
 
@@ -43,9 +43,14 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {
-    const { id, name } = await request.json();
-    if (!id || !name?.trim()) return NextResponse.json({ error: "id and name required" }, { status: 400 });
-    await renameCategory(id, name.trim());
+    const { id, name, isPublic } = await request.json();
+    if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+    if (typeof isPublic === "boolean") {
+      await updateCategoryVisibility(id, isPublic);
+    }
+    if (name?.trim()) {
+      await renameCategory(id, name.trim());
+    }
     const categories = await getCategories();
     return NextResponse.json({ categories });
   } catch (error) {

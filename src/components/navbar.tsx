@@ -18,6 +18,7 @@ const navLinks = [
   { label: "Turquoise", href: "/properties/turquoise" },
   { label: "Journal", href: "/blog" },
   { label: "FAQ", href: "/faq" },
+  { label: "Recommendations", href: "/recommendations" },
 ];
 
 export function Navbar() {

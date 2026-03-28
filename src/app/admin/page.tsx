@@ -1981,6 +1981,7 @@ interface SvcCategory {
   id: string;
   name: string;
   sortOrder: number;
+  isPublic: boolean;
   vendors: SvcVendor[];
 }
 
@@ -2054,6 +2055,14 @@ function ContactsTab({ authToken }: { authToken: string }) {
     if (res.ok) applyResult(await res.json());
   };
 
+  const togglePublic = async (id: string, isPublic: boolean) => {
+    const res = await fetch("/api/admin/contacts", {
+      method: "PATCH", headers,
+      body: JSON.stringify({ id, isPublic }),
+    });
+    if (res.ok) applyResult(await res.json());
+  };
+
   const addVendor = async (categoryId: string) => {
     const res = await fetch("/api/admin/contacts/vendors", {
       method: "POST", headers,
@@ -2116,17 +2125,25 @@ function ContactsTab({ authToken }: { authToken: string }) {
 
   return (
     <div className="space-y-8">
-      {/* Category Quick-Nav */}
-      <div className="flex gap-2 overflow-x-auto pb-2">
-        {categories.map((cat) => (
-          <button
-            key={cat.id}
-            onClick={() => document.getElementById(`cat-${cat.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}
-            className="shrink-0 rounded-full border border-[#0f1d3d]/20 px-3 py-1 text-xs text-[#0f1d3d] hover:bg-[#0f1d3d] hover:text-white transition"
-          >
-            {cat.name}
-          </button>
-        ))}
+      {/* Category Quick-Nav — dropdown */}
+      <div className="flex items-center gap-2">
+        <label className="text-xs text-muted-foreground whitespace-nowrap">Jump to:</label>
+        <select
+          className="h-8 rounded-md border border-input bg-background px-3 text-sm text-[#0f1d3d] focus:outline-none focus:ring-1 focus:ring-[#0f1d3d]"
+          defaultValue=""
+          onChange={(e) => {
+            if (!e.target.value) return;
+            document.getElementById(`cat-${e.target.value}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+            e.target.value = "";
+          }}
+        >
+          <option value="">Select category...</option>
+          {categories.map((cat) => (
+            <option key={cat.id} value={cat.id}>
+              {cat.isPublic ? "🌐 " : ""}{cat.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Add Category */}
@@ -2189,6 +2206,17 @@ function ContactsTab({ authToken }: { authToken: string }) {
                 {catDeleteWarning === cat.id && (
                   <span className="text-xs text-red-600">Remove all vendors first</span>
                 )}
+                <button
+                  onClick={() => togglePublic(cat.id, !cat.isPublic)}
+                  className="ml-3 flex items-center gap-1.5 group"
+                  title={cat.isPublic ? "Visible to guests" : "Internal only"}
+                >
+                  <span className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${cat.isPublic ? "bg-[#0f1d3d]" : "bg-gray-300"}`}>
+                    <span className={`inline-block h-3 w-3 rounded-full bg-white transition-transform ${cat.isPublic ? "translate-x-3.5" : "translate-x-0.5"}`} />
+                  </span>
+                  <span className="text-xs text-muted-foreground group-hover:text-foreground">Public</span>
+                </button>
+                {cat.isPublic && <span className="text-[10px] text-emerald-600 ml-1">🌐 Visible to guests</span>}
               </div>
             )}
             <Button
