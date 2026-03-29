@@ -6,10 +6,7 @@ export function getDb() {
   return neon(url);
 }
 
-let initialized = false;
-
 export async function initDb() {
-  if (initialized) return; // Skip if already initialized in this serverless instance
   const sql = getDb();
   await sql`
     CREATE TABLE IF NOT EXISTS bookings (
@@ -633,5 +630,4 @@ export async function initDb() {
     ) ON CONFLICT (id) DO NOTHING
   `;
 
-  initialized = true;
 }

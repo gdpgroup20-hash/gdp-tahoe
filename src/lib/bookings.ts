@@ -1,4 +1,27 @@
-import { getDb, initDb } from "@/lib/db";
+import { getDb } from "@/lib/db";
+
+// Lightweight init — only creates the bookings table, no heavy seeding
+async function ensureBookingsTable() {
+  const sql = getDb();
+  await sql`
+    CREATE TABLE IF NOT EXISTS bookings (
+      id TEXT PRIMARY KEY,
+      property_slug TEXT NOT NULL,
+      property_name TEXT NOT NULL,
+      guest_name TEXT NOT NULL,
+      guest_email TEXT NOT NULL,
+      guest_phone TEXT NOT NULL DEFAULT '',
+      check_in TEXT NOT NULL,
+      check_out TEXT NOT NULL,
+      guests INTEGER NOT NULL DEFAULT 1,
+      special_requests TEXT NOT NULL DEFAULT '',
+      total_price NUMERIC NOT NULL DEFAULT 0,
+      stripe_payment_intent_id TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TEXT NOT NULL
+    )
+  `;
+}
 
 export interface Booking {
   id: string;
@@ -37,14 +60,14 @@ function rowToBooking(row: Record<string, unknown>): Booking {
 }
 
 export async function getBookings(): Promise<Booking[]> {
-  await initDb();
+  await ensureBookingsTable();
   const sql = getDb();
   const rows = await sql`SELECT * FROM bookings ORDER BY created_at DESC`;
   return rows.map(rowToBooking);
 }
 
 export async function addBooking(booking: Booking): Promise<void> {
-  await initDb();
+  await ensureBookingsTable();
   const sql = getDb();
   await sql`
     INSERT INTO bookings (
@@ -65,7 +88,7 @@ export async function updateBookingStatus(
   paymentIntentId: string,
   status: Booking["status"]
 ): Promise<Booking | null> {
-  await initDb();
+  await ensureBookingsTable();
   const sql = getDb();
   const rows = await sql`
     UPDATE bookings SET status = ${status}
@@ -76,7 +99,7 @@ export async function updateBookingStatus(
 }
 
 export async function getBookingsByProperty(propertySlug: string): Promise<Booking[]> {
-  await initDb();
+  await ensureBookingsTable();
   const sql = getDb();
   const rows = await sql`
     SELECT * FROM bookings WHERE property_slug = ${propertySlug} ORDER BY created_at DESC
