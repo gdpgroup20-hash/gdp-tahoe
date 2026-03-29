@@ -8,40 +8,11 @@ function checkAuth(request: Request): boolean {
   return authHeader.replace("Bearer ", "") === process.env.ADMIN_PASSWORD;
 }
 
-async function ensureBookingsSchema() {
-  const { getDb } = await import("@/lib/db");
-  const sql = getDb();
-  // Ensure all columns exist - safe to run repeatedly
-  const cols = [
-    "property_slug TEXT NOT NULL DEFAULT ''",
-    "property_name TEXT NOT NULL DEFAULT ''",
-    "guest_email TEXT NOT NULL DEFAULT ''",
-    "guest_phone TEXT NOT NULL DEFAULT ''",
-    "check_out TEXT NOT NULL DEFAULT ''",
-    "guests INTEGER NOT NULL DEFAULT 1",
-    "special_requests TEXT NOT NULL DEFAULT ''",
-    "total_price NUMERIC NOT NULL DEFAULT 0",
-    "stripe_payment_intent_id TEXT NOT NULL DEFAULT ''",
-    "created_at TEXT NOT NULL DEFAULT ''",
-  ];
-  for (const col of cols) {
-    const colName = col.split(" ")[0];
-    try {
-      await sql.unsafe(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ${col}`);
-    } catch {
-      // Column already exists, ignore
-    }
-    void colName;
-  }
-}
-
 export async function GET(request: Request) {
   if (!checkAuth(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
   try {
-    await ensureBookingsSchema();
     const { getDb } = await import("@/lib/db");
     const sql = getDb();
     const rows = await sql`SELECT * FROM bookings ORDER BY created_at DESC`;
