@@ -37,6 +37,7 @@ import {
   BookOpen,
   Eye,
   EyeOff,
+  Mail,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -3763,9 +3764,261 @@ function JournalTab({ authToken }: { authToken: string }) {
   );
 }
 
+// ─── Messages Tab ───────────────────────────────────────────────────────────
+
+interface EmailTemplate {
+  id: string;
+  name: string;
+  trigger: "booking_confirmed" | "owner_notification" | "pre_checkin" | "post_checkout";
+  subject: string;
+  body: string;
+  daysOffset: number;
+  enabled: boolean;
+  updatedAt: string;
+}
+
+const TRIGGER_LABELS: Record<string, string> = {
+  booking_confirmed: "On booking",
+  owner_notification: "On booking",
+  pre_checkin: "Before check-in",
+  post_checkout: "After checkout",
+};
+
+function getTriggerBadge(tpl: EmailTemplate): string {
+  if (tpl.trigger === "pre_checkin") return `${Math.abs(tpl.daysOffset)} day${Math.abs(tpl.daysOffset) !== 1 ? "s" : ""} before check-in`;
+  if (tpl.trigger === "post_checkout") return `${tpl.daysOffset} day${tpl.daysOffset !== 1 ? "s" : ""} after checkout`;
+  return TRIGGER_LABELS[tpl.trigger] || tpl.trigger;
+}
+
+const SAMPLE_DATA: Record<string, string> = {
+  guest_name: "Sarah",
+  property_name: "Elevation Estate",
+  check_in: "June 15, 2026",
+  check_out: "June 20, 2026",
+  nights: "5",
+  total: "28,280",
+  booking_id: "GDP-ABC123",
+  rental_agreement_url: "https://www.staygdptahoe.com/agreement/GDP-ABC123",
+  recommendations_url: "https://www.staygdptahoe.com/recommendations",
+};
+
+function renderPreview(text: string): string {
+  return text.replace(/\{\{(\w+)\}\}/g, (_, key) => SAMPLE_DATA[key] || `{{${key}}}`);
+}
+
+function MessagesTab({ authToken }: { authToken: string }) {
+  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [editSubject, setEditSubject] = useState("");
+  const [editBody, setEditBody] = useState("");
+  const [editDaysOffset, setEditDaysOffset] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [savedId, setSavedId] = useState<string | null>(null);
+
+  const fetchTemplates = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/email-templates", {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTemplates(data.templates);
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setLoading(false);
+    }
+  }, [authToken]);
+
+  useEffect(() => { fetchTemplates(); }, [fetchTemplates]);
+
+  const handleExpand = (tpl: EmailTemplate) => {
+    if (expandedId === tpl.id) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(tpl.id);
+    setEditSubject(tpl.subject);
+    setEditBody(tpl.body);
+    setEditDaysOffset(tpl.daysOffset);
+  };
+
+  const handleToggleEnabled = async (tpl: EmailTemplate) => {
+    const newEnabled = !tpl.enabled;
+    setTemplates((prev) => prev.map((t) => t.id === tpl.id ? { ...t, enabled: newEnabled } : t));
+    await fetch(`/api/admin/email-templates/${tpl.id}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled: newEnabled }),
+    });
+  };
+
+  const handleSave = async (id: string) => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/email-templates/${id}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject: editSubject,
+          body: editBody,
+          daysOffset: editDaysOffset,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTemplates((prev) => prev.map((t) => t.id === id ? data.template : t));
+        setSavedId(id);
+        setTimeout(() => setSavedId(null), 2000);
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">Email Templates</h2>
+          <p className="text-sm text-muted-foreground">Automated emails sent at key points in the guest journey</p>
+        </div>
+      </div>
+
+      {templates.map((tpl) => {
+        const isExpanded = expandedId === tpl.id;
+        const hasTiming = tpl.trigger === "pre_checkin" || tpl.trigger === "post_checkout";
+
+        return (
+          <Card key={tpl.id} className="overflow-hidden">
+            {/* Header */}
+            <div
+              className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors"
+              onClick={() => handleExpand(tpl)}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                {isExpanded ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
+                <span className="font-medium truncate">{tpl.name}</span>
+                <Badge variant="secondary" className="text-xs shrink-0">{getTriggerBadge(tpl)}</Badge>
+              </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleToggleEnabled(tpl); }}
+                className={cn(
+                  "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                  tpl.enabled ? "bg-[#0f1d3d]" : "bg-gray-200"
+                )}
+              >
+                <span className={cn(
+                  "pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform",
+                  tpl.enabled ? "translate-x-4" : "translate-x-0"
+                )} />
+              </button>
+            </div>
+
+            {/* Expanded editor */}
+            {isExpanded && (
+              <div className="border-t px-4 py-4 space-y-4">
+                {/* Subject */}
+                <div>
+                  <Label className="text-sm font-medium">Subject line</Label>
+                  <Input
+                    value={editSubject}
+                    onChange={(e) => setEditSubject(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+
+                {/* Send timing for pre/post triggers */}
+                {hasTiming && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span>Send</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={14}
+                      value={Math.abs(editDaysOffset)}
+                      onChange={(e) => {
+                        const val = Math.max(1, Math.min(14, parseInt(e.target.value) || 1));
+                        setEditDaysOffset(tpl.trigger === "pre_checkin" ? -val : val);
+                      }}
+                      className="w-16 h-8 text-center"
+                    />
+                    <span>day{Math.abs(editDaysOffset) !== 1 ? "s" : ""} {tpl.trigger === "pre_checkin" ? "before check-in" : "after checkout"}</span>
+                  </div>
+                )}
+
+                {/* Editor + Preview side by side */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* Editor */}
+                  <div>
+                    <Label className="text-sm font-medium">Body</Label>
+                    <Textarea
+                      value={editBody}
+                      onChange={(e) => setEditBody(e.target.value)}
+                      rows={16}
+                      className="mt-1 font-mono text-sm"
+                    />
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Available variables: {"{{guest_name}}"}, {"{{property_name}}"}, {"{{check_in}}"}, {"{{check_out}}"}, {"{{nights}}"}, {"{{total}}"}, {"{{booking_id}}"}, {"{{recommendations_url}}"}, {"{{rental_agreement_url}}"}
+                    </p>
+                  </div>
+
+                  {/* Preview */}
+                  <div>
+                    <Label className="text-sm font-medium">Preview</Label>
+                    <div className="mt-1 rounded-md border bg-white p-4 text-sm min-h-[384px]">
+                      <div className="border-b pb-2 mb-3 space-y-1">
+                        <div className="text-xs text-muted-foreground">From: GDP Tahoe &lt;gdpgroup20@gmail.com&gt;</div>
+                        <div className="text-xs text-muted-foreground">To: {SAMPLE_DATA.guest_name}</div>
+                        <div className="font-medium text-sm">{renderPreview(editSubject)}</div>
+                      </div>
+                      <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                        {renderPreview(editBody)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Save */}
+                <div className="flex items-center gap-3">
+                  <Button
+                    size="sm"
+                    onClick={() => handleSave(tpl.id)}
+                    disabled={saving}
+                  >
+                    {saving ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}
+                    Save
+                  </Button>
+                  {savedId === tpl.id && (
+                    <span className="text-sm text-green-600 flex items-center gap-1">
+                      <Check className="h-4 w-4" /> Saved
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Main Admin Page ─────────────────────────────────────────────────────────
 
-type Tab = "reservations" | "calendar" | "pricing" | "maintenance" | "expenses" | "campaigns" | "contacts" | "journal" | "settings";
+type Tab = "reservations" | "calendar" | "pricing" | "maintenance" | "expenses" | "campaigns" | "messages" | "contacts" | "journal" | "settings";
 
 export default function AdminPage() {
   const [password, setPassword] = useState("");
@@ -3887,6 +4140,7 @@ export default function AdminPage() {
     { id: "maintenance", label: "Maintenance", icon: <Wrench className="h-4 w-4" /> },
     { id: "expenses", label: "Expenses", icon: <Receipt className="h-4 w-4" /> },
     { id: "campaigns", label: "Campaigns", icon: <Send className="h-4 w-4" /> },
+    { id: "messages", label: "Messages", icon: <Mail className="h-4 w-4" /> },
     { id: "contacts", label: "Contacts", icon: <Phone className="h-4 w-4" /> },
     { id: "journal", label: "Journal", icon: <BookOpen className="h-4 w-4" /> },
     { id: "settings", label: "Settings", icon: <Settings className="h-4 w-4" /> },
@@ -3956,6 +4210,7 @@ export default function AdminPage() {
         {activeTab === "maintenance" && <MaintenanceTab authToken={authToken} />}
         {activeTab === "expenses" && <ExpensesTab authToken={authToken} />}
         {activeTab === "campaigns" && <CampaignsTab authToken={authToken} />}
+        {activeTab === "messages" && <MessagesTab authToken={authToken} />}
         {activeTab === "contacts" && <ContactsTab authToken={authToken} />}
         {activeTab === "journal" && <JournalTab authToken={authToken} />}
         {activeTab === "settings" && <SettingsTab />}

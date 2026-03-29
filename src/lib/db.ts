@@ -567,4 +567,63 @@ export async function initDb() {
       ON CONFLICT (slug) DO NOTHING
     `;
   }
+
+  // ─── Email Templates ────────────────────────────────────────────────────────
+  await sql`
+    CREATE TABLE IF NOT EXISTS email_templates (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      trigger TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      body TEXT NOT NULL,
+      days_offset INTEGER NOT NULL DEFAULT 0,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      updated_at TEXT NOT NULL
+    )
+  `;
+  const tplNow = new Date().toISOString();
+  await sql`
+    INSERT INTO email_templates (id, name, trigger, subject, body, days_offset, enabled, updated_at)
+    VALUES (
+      'tpl-booking-confirmed',
+      'Guest Booking Confirmation',
+      'booking_confirmed',
+      'Your stay at {{property_name}} is confirmed!',
+      ${'Hi {{guest_name}},\n\nYour booking is confirmed! Here are your details:\n\nProperty: {{property_name}}\nCheck-in: {{check_in}} after 4:00 PM\nCheck-out: {{check_out}} before 10:00 AM\nNights: {{nights}}\nTotal paid: ${{total}}\nBooking ID: {{booking_id}}\n\nYou will receive check-in instructions including door code, parking, and WiFi details 3 days before your arrival.\n\nBefore your stay, please review your rental agreement: {{rental_agreement_url}}\n\nWe look forward to welcoming you to Lake Tahoe!\n\nGrace & Andrew\nGDP Tahoe\ngdpgroup20@gmail.com | 603-359-9227\nstaygdptahoe.com'},
+      0, 1, ${tplNow}
+    ) ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO email_templates (id, name, trigger, subject, body, days_offset, enabled, updated_at)
+    VALUES (
+      'tpl-owner-notification',
+      'Owner Booking Notification',
+      'owner_notification',
+      'New booking: {{guest_name}} — {{property_name}} {{check_in}} to {{check_out}}',
+      ${'New direct booking received!\n\nGuest: {{guest_name}}\nProperty: {{property_name}}\nCheck-in: {{check_in}}\nCheck-out: {{check_out}}\nNights: {{nights}}\nTotal: ${{total}}\nBooking ID: {{booking_id}}\n\nView in portal: https://www.staygdptahoe.com/admin'},
+      0, 1, ${tplNow}
+    ) ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO email_templates (id, name, trigger, subject, body, days_offset, enabled, updated_at)
+    VALUES (
+      'tpl-pre-checkin',
+      'Pre-Arrival Instructions',
+      'pre_checkin',
+      ${'Your stay at {{property_name}} is coming up — everything you need to know'},
+      ${'Hi {{guest_name}},\n\nYour stay at {{property_name}} is just 3 days away — we\'re so excited to host you!\n\nCHECK-IN INFORMATION\nAddress: [Add address here]\nCheck-in: After 4:00 PM on {{check_in}}\nDoor code: [Add door code here]\nParking: [Add parking instructions here]\nWiFi: [Add WiFi name and password here]\n\nDURING YOUR STAY\nIf you need anything, reach us at 603-359-9227 (call or text) or reply to this email.\n\nRECOMMENDATIONS\nWe\'ve put together our favorite local restaurants, activities, and services at:\n{{recommendations_url}}\n\nPlease remember:\n• Quiet hours are 10 PM – 7 AM\n• No parties or large gatherings\n• Lock all doors when leaving\n\nWe hope you have an incredible time at Lake Tahoe!\n\nGrace & Andrew\nGDP Tahoe'},
+      -3, 1, ${tplNow}
+    ) ON CONFLICT (id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO email_templates (id, name, trigger, subject, body, days_offset, enabled, updated_at)
+    VALUES (
+      'tpl-post-checkout',
+      'Post-Stay Review Request',
+      'post_checkout',
+      ${'Thank you for staying with GDP Tahoe — we\'d love your feedback'},
+      ${'Hi {{guest_name}},\n\nThank you for staying at {{property_name}}! We hope you had a wonderful time in Lake Tahoe.\n\nIf you enjoyed your stay, we\'d be so grateful if you could leave us a review — it makes a huge difference for our small family business.\n\nLeave a review on Airbnb: [Add your Airbnb review link]\nLeave a review on VRBO: [Add your VRBO review link]\n\nWe hope to welcome you back soon. If you\'d like to book your next stay directly and save on service fees, visit us at:\nhttps://www.staygdptahoe.com\n\nWith gratitude,\nGrace & Andrew\nGDP Tahoe'},
+      1, 1, ${tplNow}
+    ) ON CONFLICT (id) DO NOTHING
+  `;
 }
