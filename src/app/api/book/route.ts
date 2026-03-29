@@ -103,8 +103,15 @@ export async function POST(request: Request) {
       });
       console.log(`[Book] Booking saved: ${bookingId}`);
     } catch (dbErr) {
-      console.error(`[Book] DB save failed for ${bookingId}:`, dbErr);
-      // Still return success — Stripe charged, we'll reconcile manually
+      const errMsg = dbErr instanceof Error ? dbErr.message : String(dbErr);
+      console.error(`[Book] DB save failed for ${bookingId}:`, errMsg);
+      // Return the error so we can debug
+      return NextResponse.json({
+        bookingId,
+        clientSecret: paymentIntent.client_secret,
+        total: pricing.total,
+        dbError: errMsg, // temporary debug field
+      });
     }
 
     return NextResponse.json({
