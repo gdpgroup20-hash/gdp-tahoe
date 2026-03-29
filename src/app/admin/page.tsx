@@ -3120,23 +3120,23 @@ function ExpensesTab({ authToken }: { authToken: string }) {
         </div>
 
         {/* Stat cards */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-muted-foreground">Total Expenses</p>
-              <p className="text-2xl font-bold text-[#0f1d3d]">${totalSpend.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <CardContent className="pt-4 pb-4">
+              <p className="text-xs text-muted-foreground">Total Expenses</p>
+              <p className="text-lg font-bold text-[#0f1d3d] truncate">${totalSpend.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-muted-foreground"># Transactions</p>
-              <p className="text-2xl font-bold text-[#0f1d3d]">{txCount}</p>
+            <CardContent className="pt-4 pb-4">
+              <p className="text-xs text-muted-foreground">Transactions</p>
+              <p className="text-lg font-bold text-[#0f1d3d]">{txCount}</p>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-muted-foreground">Largest Expense</p>
-              <p className="text-2xl font-bold text-[#0f1d3d]">${largest.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <CardContent className="pt-4 pb-4">
+              <p className="text-xs text-muted-foreground">Largest Expense</p>
+              <p className="text-lg font-bold text-[#0f1d3d] truncate">${largest.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             </CardContent>
           </Card>
         </div>
@@ -3149,11 +3149,11 @@ function ExpensesTab({ authToken }: { authToken: string }) {
             </CardHeader>
             <CardContent className="space-y-2">
               {chartEntries.map(([cat, amount], i) => (
-                <div key={cat} className="flex items-center gap-3">
-                  <span className="w-36 truncate text-sm font-medium">{cat}</span>
-                  <div className="flex-1">
+                <div key={cat} className="flex items-center gap-2">
+                  <span className="w-24 sm:w-36 truncate text-xs sm:text-sm font-medium shrink-0">{cat}</span>
+                  <div className="flex-1 min-w-0">
                     <div
-                      className="h-6 rounded"
+                      className="h-5 rounded"
                       style={{
                         width: `${Math.max(2, (amount / maxSpend) * 100)}%`,
                         backgroundColor: "#0f1d3d",
@@ -3161,8 +3161,8 @@ function ExpensesTab({ authToken }: { authToken: string }) {
                       }}
                     />
                   </div>
-                  <span className="w-28 text-right text-sm font-medium tabular-nums">
-                    ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <span className="w-20 sm:w-28 text-right text-xs sm:text-sm font-medium tabular-nums shrink-0">
+                    ${amount.toLocaleString("en-US", { maximumFractionDigits: 0 })}
                   </span>
                 </div>
               ))}
