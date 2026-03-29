@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getBookings } from "@/lib/bookings";
+
 
 export const dynamic = "force-dynamic";
 
