@@ -52,3 +52,15 @@ export async function GET(request: Request) {
     );
   }
 }
+
+export async function PUT(request: Request) {
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ") || authHeader.replace("Bearer ", "") !== process.env.ADMIN_PASSWORD) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const { getDb } = await import("@/lib/db");
+  const sql = getDb();
+  const sample = await sql`SELECT id, guest_name, status, check_in FROM bookings LIMIT 5`;
+  const count = await sql`SELECT COUNT(*) as c FROM bookings`;
+  return NextResponse.json({ sample, count: count[0] });
+}
