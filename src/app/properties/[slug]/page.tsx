@@ -76,7 +76,21 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
     notFound();
   }
 
-  const formattedRate = property.nightlyRate.toLocaleString();
+  // Fetch live pricing from DB
+  let liveNightlyRate = property.nightlyRate;
+  let liveCleaningFee = liveCleaningFee;
+  let liveWeeklyDiscount = liveWeeklyDiscount;
+  try {
+    const { getPricingForProperty } = await import("@/lib/pricing");
+    const livePricing = await getPricingForProperty(slug);
+    if (livePricing) {
+      liveNightlyRate = livePricing.baseRate;
+      liveCleaningFee = livePricing.cleaningFee;
+      liveWeeklyDiscount = livePricing.weeklyDiscount;
+    }
+  } catch {}
+
+  const formattedRate = liveNightlyRate.toLocaleString();
 
   const isElevation = slug === "elevation-estate";
   const coordinates = isElevation
@@ -115,7 +129,7 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
       "name": a,
       "value": true,
     })),
-    "priceRange": `From $${property.nightlyRate.toLocaleString()}/night`,
+    "priceRange": `From $${liveNightlyRate.toLocaleString()}/night`,
     "telephone": "",
     "containsPlace": {
       "@type": "Accommodation",
@@ -304,9 +318,9 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
                     </span>
                     <span className="text-sm text-white/70">/ night</span>
                   </div>
-                  {property.weeklyDiscount > 0 && (
+                  {liveWeeklyDiscount > 0 && (
                     <p className="mt-1 text-sm text-white/70">
-                      {property.weeklyDiscount}% off for weekly stays
+                      {liveWeeklyDiscount}% off for weekly stays
                     </p>
                   )}
                 </div>
@@ -327,16 +341,16 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
                         Cleaning fee
                       </span>
                       <span className="font-medium text-[#0f1d3d]">
-                        ${property.cleaningFee}
+                        ${liveCleaningFee}
                       </span>
                     </div>
-                    {property.weeklyDiscount > 0 && (
+                    {liveWeeklyDiscount > 0 && (
                       <div className="flex items-center justify-between">
                         <span className="text-muted-foreground">
                           Weekly discount
                         </span>
                         <span className="font-medium text-emerald-600">
-                          -{property.weeklyDiscount}%
+                          -{liveWeeklyDiscount}%
                         </span>
                       </div>
                     )}
@@ -379,9 +393,9 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
                 </span>
                 <span className="text-sm text-muted-foreground">/ night</span>
               </div>
-              {property.weeklyDiscount > 0 && (
+              {liveWeeklyDiscount > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  {property.weeklyDiscount}% off weekly
+                  {liveWeeklyDiscount}% off weekly
                 </p>
               )}
             </div>
