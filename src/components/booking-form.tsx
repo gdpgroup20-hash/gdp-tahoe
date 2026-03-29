@@ -136,9 +136,7 @@ function PaymentStep({
 
       if (stripeError) {
         setError(
-          stripeError.type === "card_error"
-            ? "Your card was declined. Please try a different card."
-            : "Something went wrong. Please try again."
+          stripeError.message || "Something went wrong. Please try again."
         );
       } else if (paymentIntent?.status === "succeeded") {
         onSuccess(bookingId);
