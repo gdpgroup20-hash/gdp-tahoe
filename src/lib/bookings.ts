@@ -37,7 +37,6 @@ function rowToBooking(row: Record<string, unknown>): Booking {
 }
 
 export async function getBookings(): Promise<Booking[]> {
-  await initDb();
   const sql = getDb();
   const rows = await sql`SELECT * FROM bookings ORDER BY created_at DESC`;
   return rows.map(rowToBooking);
@@ -65,7 +64,6 @@ export async function updateBookingStatus(
   paymentIntentId: string,
   status: Booking["status"]
 ): Promise<Booking | null> {
-  await initDb();
   const sql = getDb();
   const rows = await sql`
     UPDATE bookings SET status = ${status}
