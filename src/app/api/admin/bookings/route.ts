@@ -12,6 +12,9 @@ export async function GET(request: Request) {
   try {
     const { getDb } = await import("@/lib/db");
     const sql = getDb();
+    // Debug: which DB are we connected to?
+    const dbInfo = await sql`SELECT current_database(), (SELECT COUNT(*) FROM bookings) as booking_count`;
+    console.log('[Bookings] DB:', dbInfo[0]);
     const rows = await sql`SELECT * FROM bookings ORDER BY created_at DESC`;
     const bookings = rows.map((row: Record<string, unknown>) => ({
       id: String(row.id || ""),
