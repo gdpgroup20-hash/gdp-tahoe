@@ -17,9 +17,8 @@ interface PropertyPageProps {
   params: Promise<{ slug: string }>;
 }
 
-export async function generateStaticParams() {
-  return [{ slug: "elevation-estate" }, { slug: "turquoise" }];
-}
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function generateMetadata({
   params,
