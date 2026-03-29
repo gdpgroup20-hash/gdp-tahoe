@@ -1,7 +1,6 @@
 import { Metadata } from "next";
 import { getPublicCategories } from "@/lib/contacts";
-import { Navbar } from "@/components/navbar";
-import { Footer } from "@/components/footer";
+
 import { VendorCard } from "@/components/vendor-card";
 
 export const dynamic = "force-dynamic";
@@ -53,7 +52,7 @@ export default async function RecommendationsPage() {
 
   return (
     <>
-      <Navbar />
+
 
       {/* JSON-LD */}
       <script
@@ -109,7 +108,7 @@ export default async function RecommendationsPage() {
         </section>
       </main>
 
-      <Footer />
+
     </>
   );
 }
