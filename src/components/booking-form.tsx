@@ -49,7 +49,9 @@ interface PropertyPolicies {
 type Step = "details" | "payment" | "success";
 
 function calculatePrice(
-  property: Property,
+  nightlyRate: number,
+  weeklyDiscount: number,
+  cleaningFee: number,
   dateRange: { from: Date | undefined; to: Date | undefined } | undefined,
   totRate: number
 ): PriceSummary | null {
@@ -58,19 +60,19 @@ function calculatePrice(
   const nights = differenceInCalendarDays(dateRange.to, dateRange.from);
   if (nights < 2) return null;
 
-  const subtotal = nights * property.nightlyRate;
+  const subtotal = nights * nightlyRate;
   const hasWeeklyDiscount = nights >= 7;
   const discount = hasWeeklyDiscount
-    ? subtotal * (property.weeklyDiscount / 100)
+    ? subtotal * (weeklyDiscount / 100)
     : 0;
   const totAmount = Math.round(subtotal * (totRate / 100));
-  const total = subtotal - discount + property.cleaningFee + totAmount;
+  const total = subtotal - discount + cleaningFee + totAmount;
 
   return {
     nights,
     subtotal,
     discount,
-    cleaningFee: property.cleaningFee,
+    cleaningFee,
     totAmount,
     total,
     hasWeeklyDiscount,
@@ -192,14 +194,14 @@ function PaymentStep({
             <Separator />
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">
-                ${property.nightlyRate.toLocaleString()} &times; {price.nights}{" "}
+                ${Math.round(price.subtotal / price.nights).toLocaleString()} &times; {price.nights}{" "}
                 night{price.nights !== 1 && "s"}
               </span>
               <span>${price.subtotal.toLocaleString()}</span>
             </div>
             {price.hasWeeklyDiscount && (
               <div className="flex justify-between text-sm text-green-600">
-                <span>Weekly discount ({property.weeklyDiscount}%)</span>
+                <span>Weekly discount</span>
                 <span>&minus;${price.discount.toLocaleString()}</span>
               </div>
             )}
@@ -359,6 +361,39 @@ export function BookingForm({ property }: BookingFormProps) {
   const [policies, setPolicies] = useState<PropertyPolicies | null>(null);
   const totRate = policies?.totRate ?? 12;
 
+  // Live pricing from DB (overrides static property values)
+  const [livePricing, setLivePricing] = useState<{
+    baseRate: number;
+    cleaningFee: number;
+    weeklyDiscount: number;
+  } | null>(null);
+
+  const nightlyRate = livePricing?.baseRate ?? property.nightlyRate;
+  const cleaningFee = livePricing?.cleaningFee ?? property.cleaningFee;
+  const weeklyDiscount = livePricing?.weeklyDiscount ?? property.weeklyDiscount;
+
+  useEffect(() => {
+    fetch(`/api/pricing/${property.slug}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.baseRate) {
+          setLivePricing({
+            baseRate: data.baseRate,
+            cleaningFee: data.cleaningFee,
+            weeklyDiscount: data.weeklyDiscount,
+          });
+        }
+        setPolicies({
+          totRate: data.totRate ?? 12,
+          cancellationPolicy: data.cancellationPolicy ?? "",
+          securityDepositPolicy: data.securityDepositPolicy ?? "",
+          rentalAgreementUrl: data.rentalAgreementUrl ?? "",
+          rentalAgreementName: data.rentalAgreementName ?? "",
+        });
+      })
+      .catch(() => {});
+  }, [property.slug]);
+
   // Fetch unavailable dates
   useEffect(() => {
     async function fetchAvailability() {
@@ -411,8 +446,8 @@ export function BookingForm({ property }: BookingFormProps) {
   );
 
   const price = useMemo(
-    () => calculatePrice(property, dateRange, totRate),
-    [property, dateRange, totRate]
+    () => calculatePrice(nightlyRate, weeklyDiscount, cleaningFee, dateRange, totRate),
+    [nightlyRate, weeklyDiscount, cleaningFee, dateRange, totRate]
   );
 
   const isFormValid =
@@ -657,7 +692,7 @@ export function BookingForm({ property }: BookingFormProps) {
                 <>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">
-                      ${property.nightlyRate.toLocaleString()} &times;{" "}
+                      ${nightlyRate.toLocaleString()} &times;{" "}
                       {price.nights} night{price.nights !== 1 && "s"}
                     </span>
                     <span>${price.subtotal.toLocaleString()}</span>
@@ -665,7 +700,7 @@ export function BookingForm({ property }: BookingFormProps) {
                   {price.hasWeeklyDiscount && (
                     <div className="flex justify-between text-sm text-green-600">
                       <span>
-                        Weekly discount ({property.weeklyDiscount}%)
+                        Weekly discount
                       </span>
                       <span>&minus;${price.discount.toLocaleString()}</span>
                     </div>
