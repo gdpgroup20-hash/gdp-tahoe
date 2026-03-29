@@ -6,44 +6,52 @@ import { getPricingForProperty } from "@/lib/pricing";
 
 export const dynamic = "force-dynamic";
 
+async function getGmailAccessToken(): Promise<string> {
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: process.env.GMAIL_CLIENT_ID!,
+      client_secret: process.env.GMAIL_CLIENT_SECRET!,
+      refresh_token: process.env.GMAIL_REFRESH_TOKEN!,
+      grant_type: "refresh_token",
+    }),
+  });
+  const data = await res.json();
+  return data.access_token;
+}
+
 async function sendGmail(to: string, subject: string, html: string) {
-  const { execSync } = await import("child_process");
-  const { writeFileSync, unlinkSync } = await import("fs");
-  const tmpFile = `/tmp/gdp-email-${Date.now()}.json`;
-  writeFileSync(tmpFile, JSON.stringify({ to, subject, html }));
-  try {
-    execSync(
-      `python3 -c "
-import json, urllib.request, urllib.parse, base64, email.mime.multipart, email.mime.text
-with open('${tmpFile}') as f:
-    data = json.load(f)
-def refresh():
-    with open('/Users/andrewvanbark/.openclaw/secrets/gdp-gmail-oauth.json') as f:
-        creds = json.load(f)['installed']
-    with open('/Users/andrewvanbark/.openclaw/secrets/gdp-gmail-token.json') as f:
-        token = json.load(f)
-    d = urllib.parse.urlencode({'client_id': creds['client_id'], 'client_secret': creds['client_secret'], 'refresh_token': token['refresh_token'], 'grant_type': 'refresh_token'}).encode()
-    req = urllib.request.Request(creds['token_uri'], data=d, method='POST')
-    req.add_header('Content-Type', 'application/x-www-form-urlencoded')
-    with urllib.request.urlopen(req) as r: t = json.loads(r.read())
-    token['access_token'] = t['access_token']
-    with open('/Users/andrewvanbark/.openclaw/secrets/gdp-gmail-token.json', 'w') as f: json.dump(token, f)
-    return token['access_token']
-tok = refresh()
-msg = email.mime.multipart.MIMEMultipart('alternative')
-msg['Subject'] = data['subject']
-msg['From'] = 'GDP Tahoe <gdpgroup20@gmail.com>'
-msg['To'] = data['to']
-msg.attach(email.mime.text.MIMEText(data['html'], 'html'))
-raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
-body = json.dumps({'raw': raw}).encode()
-req = urllib.request.Request('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', data=body, headers={'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json'}, method='POST')
-with urllib.request.urlopen(req) as r: print(r.read())
-"`,
-      { timeout: 15000 }
-    );
-  } finally {
-    try { unlinkSync(tmpFile); } catch {}
+  const accessToken = await getGmailAccessToken();
+
+  // Build RFC 2822 email
+  const emailLines = [
+    `From: GDP Tahoe <gdpgroup20@gmail.com>`,
+    `To: ${to}`,
+    `Subject: ${subject}`,
+    `MIME-Version: 1.0`,
+    `Content-Type: text/html; charset=utf-8`,
+    ``,
+    html,
+  ];
+  const raw = Buffer.from(emailLines.join("\r\n"))
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+
+  const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ raw }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(`Gmail API error: ${JSON.stringify(err)}`);
   }
 }
 
