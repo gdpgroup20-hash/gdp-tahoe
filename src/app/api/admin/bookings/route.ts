@@ -8,36 +8,43 @@ function checkAuth(request: Request): boolean {
   return authHeader.replace("Bearer ", "") === process.env.ADMIN_PASSWORD;
 }
 
+async function ensureBookingsSchema() {
+  const { getDb } = await import("@/lib/db");
+  const sql = getDb();
+  // Ensure all columns exist - safe to run repeatedly
+  const cols = [
+    "property_slug TEXT NOT NULL DEFAULT ''",
+    "property_name TEXT NOT NULL DEFAULT ''",
+    "guest_email TEXT NOT NULL DEFAULT ''",
+    "guest_phone TEXT NOT NULL DEFAULT ''",
+    "check_out TEXT NOT NULL DEFAULT ''",
+    "guests INTEGER NOT NULL DEFAULT 1",
+    "special_requests TEXT NOT NULL DEFAULT ''",
+    "total_price NUMERIC NOT NULL DEFAULT 0",
+    "stripe_payment_intent_id TEXT NOT NULL DEFAULT ''",
+    "created_at TEXT NOT NULL DEFAULT ''",
+  ];
+  for (const col of cols) {
+    const colName = col.split(" ")[0];
+    try {
+      await sql.unsafe(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS ${col}`);
+    } catch {
+      // Column already exists, ignore
+    }
+    void colName;
+  }
+}
+
 export async function GET(request: Request) {
   if (!checkAuth(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
+    await ensureBookingsSchema();
     const { getDb } = await import("@/lib/db");
     const sql = getDb();
-    
-    // Select only columns we know exist (from debug - some columns were missing)
-    const rows = await sql`
-      SELECT 
-        id,
-        COALESCE(property_slug, '') as property_slug,
-        COALESCE(property_name, '') as property_name,
-        COALESCE(guest_name, '') as guest_name,
-        COALESCE(guest_email, '') as guest_email,
-        COALESCE(guest_phone, '') as guest_phone,
-        COALESCE(check_in, '') as check_in,
-        COALESCE(check_out, '') as check_out,
-        COALESCE(guests, 1) as guests,
-        COALESCE(special_requests, '') as special_requests,
-        COALESCE(total_price, 0) as total_price,
-        COALESCE(stripe_payment_intent_id, '') as stripe_payment_intent_id,
-        COALESCE(status, 'pending') as status,
-        COALESCE(created_at, '') as created_at
-      FROM bookings 
-      ORDER BY created_at DESC
-    `;
-    
+    const rows = await sql`SELECT * FROM bookings ORDER BY created_at DESC`;
     const bookings = rows.map((row: Record<string, unknown>) => ({
       id: String(row.id || ""),
       propertySlug: String(row.property_slug || ""),
@@ -54,11 +61,9 @@ export async function GET(request: Request) {
       status: String(row.status || "pending"),
       createdAt: String(row.created_at || ""),
     }));
-    
     return NextResponse.json({ bookings });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.error("Bookings GET error:", msg);
     return NextResponse.json({ error: msg, bookings: [] }, { status: 500 });
   }
 }
