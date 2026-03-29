@@ -60,7 +60,7 @@ export async function PUT(request: Request) {
   }
   const { getDb } = await import("@/lib/db");
   const sql = getDb();
-  const sample = await sql`SELECT id, guest_name, status, check_in FROM bookings LIMIT 5`;
+  const sample = await sql`SELECT * FROM bookings LIMIT 2`;
   const count = await sql`SELECT COUNT(*) as c FROM bookings`;
   return NextResponse.json({ sample, count: count[0] });
 }
