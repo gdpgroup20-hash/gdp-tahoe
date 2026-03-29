@@ -13,6 +13,11 @@ export interface PropertyPricing {
   cleaningFee: number;
   weeklyDiscount: number;
   seasonalRates: SeasonalRate[];
+  totRate: number;
+  rentalAgreementUrl: string;
+  rentalAgreementName: string;
+  cancellationPolicy: string;
+  securityDepositPolicy: string;
 }
 
 export type PricingConfig = Record<string, PropertyPricing>;
@@ -23,6 +28,11 @@ function rowToPricing(row: Record<string, unknown>): PropertyPricing {
     cleaningFee: Number(row.cleaning_fee),
     weeklyDiscount: Number(row.weekly_discount),
     seasonalRates: (row.seasonal_rates as SeasonalRate[]) ?? [],
+    totRate: Number(row.tot_rate ?? 12),
+    rentalAgreementUrl: (row.rental_agreement_url as string) ?? "",
+    rentalAgreementName: (row.rental_agreement_name as string) ?? "",
+    cancellationPolicy: (row.cancellation_policy as string) ?? "",
+    securityDepositPolicy: (row.security_deposit_policy as string) ?? "",
   };
 }
 
@@ -48,13 +58,18 @@ export async function updatePricing(slug: string, pricing: PropertyPricing): Pro
   await initDb();
   const sql = getDb();
   await sql`
-    INSERT INTO pricing (property_slug, base_rate, cleaning_fee, weekly_discount, seasonal_rates)
-    VALUES (${slug}, ${pricing.baseRate}, ${pricing.cleaningFee}, ${pricing.weeklyDiscount}, ${JSON.stringify(pricing.seasonalRates)})
+    INSERT INTO pricing (property_slug, base_rate, cleaning_fee, weekly_discount, seasonal_rates, tot_rate, rental_agreement_url, rental_agreement_name, cancellation_policy, security_deposit_policy)
+    VALUES (${slug}, ${pricing.baseRate}, ${pricing.cleaningFee}, ${pricing.weeklyDiscount}, ${JSON.stringify(pricing.seasonalRates)}, ${pricing.totRate}, ${pricing.rentalAgreementUrl}, ${pricing.rentalAgreementName}, ${pricing.cancellationPolicy}, ${pricing.securityDepositPolicy})
     ON CONFLICT (property_slug) DO UPDATE SET
       base_rate = EXCLUDED.base_rate,
       cleaning_fee = EXCLUDED.cleaning_fee,
       weekly_discount = EXCLUDED.weekly_discount,
-      seasonal_rates = EXCLUDED.seasonal_rates
+      seasonal_rates = EXCLUDED.seasonal_rates,
+      tot_rate = EXCLUDED.tot_rate,
+      rental_agreement_url = EXCLUDED.rental_agreement_url,
+      rental_agreement_name = EXCLUDED.rental_agreement_name,
+      cancellation_policy = EXCLUDED.cancellation_policy,
+      security_deposit_policy = EXCLUDED.security_deposit_policy
   `;
 }
 

@@ -33,15 +33,25 @@ interface PriceSummary {
   subtotal: number;
   discount: number;
   cleaningFee: number;
+  totAmount: number;
   total: number;
   hasWeeklyDiscount: boolean;
+}
+
+interface PropertyPolicies {
+  totRate: number;
+  cancellationPolicy: string;
+  securityDepositPolicy: string;
+  rentalAgreementUrl: string;
+  rentalAgreementName: string;
 }
 
 type Step = "details" | "payment" | "success";
 
 function calculatePrice(
   property: Property,
-  dateRange: { from: Date | undefined; to: Date | undefined } | undefined
+  dateRange: { from: Date | undefined; to: Date | undefined } | undefined,
+  totRate: number
 ): PriceSummary | null {
   if (!dateRange?.from || !dateRange?.to) return null;
 
@@ -53,13 +63,15 @@ function calculatePrice(
   const discount = hasWeeklyDiscount
     ? subtotal * (property.weeklyDiscount / 100)
     : 0;
-  const total = subtotal - discount + property.cleaningFee;
+  const totAmount = Math.round(subtotal * (totRate / 100));
+  const total = subtotal - discount + property.cleaningFee + totAmount;
 
   return {
     nights,
     subtotal,
     discount,
     cleaningFee: property.cleaningFee,
+    totAmount,
     total,
     hasWeeklyDiscount,
   };
@@ -85,6 +97,7 @@ function PaymentStep({
   dateRange,
   clientSecret,
   bookingId,
+  policies,
   onSuccess,
   onBack,
 }: {
@@ -93,6 +106,7 @@ function PaymentStep({
   dateRange: { from: Date; to: Date };
   clientSecret: string;
   bookingId: string;
+  policies: PropertyPolicies | null;
   onSuccess: (bookingId: string) => void;
   onBack: () => void;
 }) {
@@ -100,10 +114,11 @@ function PaymentStep({
   const elements = useElements();
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [policyAccepted, setPolicyAccepted] = useState(false);
 
   async function handlePay(e: React.FormEvent) {
     e.preventDefault();
-    if (!stripe || !elements) return;
+    if (!stripe || !elements || !policyAccepted) return;
 
     const cardElement = elements.getElement(CardElement);
     if (!cardElement) return;
@@ -132,6 +147,10 @@ function PaymentStep({
       setProcessing(false);
     }
   }
+
+  const cancellationLines = policies?.cancellationPolicy
+    ? policies.cancellationPolicy.split("\n").filter((l) => l.trim())
+    : [];
 
   return (
     <form onSubmit={handlePay}>
@@ -188,6 +207,14 @@ function PaymentStep({
               <span className="text-muted-foreground">Cleaning fee</span>
               <span>${price.cleaningFee.toLocaleString()}</span>
             </div>
+            {price.totAmount > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">
+                  Placer County TOT ({policies?.totRate ?? 12}%)
+                </span>
+                <span>${price.totAmount.toLocaleString()}</span>
+              </div>
+            )}
             <Separator />
             <div className="flex justify-between text-base font-semibold text-[#0f1d3d]">
               <span>Total</span>
@@ -195,6 +222,64 @@ function PaymentStep({
             </div>
           </CardContent>
         </Card>
+
+        {/* Policies */}
+        {policies && (
+          <Card>
+            <CardContent className="space-y-4 pt-6">
+              {cancellationLines.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-[#0f1d3d] mb-2">
+                    Cancellation policy
+                  </h4>
+                  <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
+                    {cancellationLines.map((line, i) => (
+                      <li key={i}>{line}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {policies.securityDepositPolicy && (
+                <div>
+                  <h4 className="text-sm font-semibold text-[#0f1d3d] mb-2">
+                    Security deposit policy
+                  </h4>
+                  <p className="text-sm text-muted-foreground">
+                    {policies.securityDepositPolicy}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex items-start gap-3 pt-2">
+                <input
+                  type="checkbox"
+                  id="accept-policies"
+                  checked={policyAccepted}
+                  onChange={(e) => setPolicyAccepted(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300"
+                />
+                <label htmlFor="accept-policies" className="text-sm leading-snug">
+                  I have read and accept the cancellation policy
+                  {policies.rentalAgreementUrl ? (
+                    <>
+                      {" and the "}
+                      <a
+                        href={policies.rentalAgreementUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 underline hover:text-blue-800"
+                      >
+                        rental agreement
+                      </a>
+                    </>
+                  ) : null}
+                  .
+                </label>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Card input */}
         <Card>
@@ -218,7 +303,7 @@ function PaymentStep({
               type="submit"
               size="lg"
               className="w-full bg-[#0f1d3d] text-base font-semibold hover:bg-[#0f1d3d]/90"
-              disabled={!stripe || processing}
+              disabled={!stripe || processing || !policyAccepted}
             >
               {processing ? (
                 <span className="flex items-center gap-2">
@@ -271,6 +356,9 @@ export function BookingForm({ property }: BookingFormProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [bookingId, setBookingId] = useState<string | null>(null);
 
+  const [policies, setPolicies] = useState<PropertyPolicies | null>(null);
+  const totRate = policies?.totRate ?? 12;
+
   // Fetch unavailable dates
   useEffect(() => {
     async function fetchAvailability() {
@@ -294,6 +382,22 @@ export function BookingForm({ property }: BookingFormProps) {
     fetchAvailability();
   }, [property.slug]);
 
+  // Fetch pricing policies when payment step loads
+  useEffect(() => {
+    if (step !== "payment") return;
+    async function fetchPolicies() {
+      try {
+        const res = await fetch(`/api/pricing/${property.slug}`);
+        if (res.ok) {
+          setPolicies(await res.json());
+        }
+      } catch {
+        // silent
+      }
+    }
+    fetchPolicies();
+  }, [step, property.slug]);
+
   const today = startOfDay(new Date());
 
   const disabledMatcher = useCallback(
@@ -307,8 +411,8 @@ export function BookingForm({ property }: BookingFormProps) {
   );
 
   const price = useMemo(
-    () => calculatePrice(property, dateRange),
-    [property, dateRange]
+    () => calculatePrice(property, dateRange, totRate),
+    [property, dateRange, totRate]
   );
 
   const isFormValid =
@@ -434,6 +538,7 @@ export function BookingForm({ property }: BookingFormProps) {
           dateRange={{ from: dateRange.from, to: dateRange.to }}
           clientSecret={clientSecret}
           bookingId={bookingId}
+          policies={policies}
           onSuccess={(id) => {
             setBookingId(id);
             setStep("success");
@@ -571,6 +676,14 @@ export function BookingForm({ property }: BookingFormProps) {
                     </span>
                     <span>${price.cleaningFee.toLocaleString()}</span>
                   </div>
+                  {price.totAmount > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        Placer County TOT ({totRate}%)
+                      </span>
+                      <span>${price.totAmount.toLocaleString()}</span>
+                    </div>
+                  )}
                   <Separator />
                   <div className="flex justify-between text-base font-semibold text-[#0f1d3d]">
                     <span>Total</span>

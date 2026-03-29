@@ -35,6 +35,12 @@ export async function initDb() {
       seasonal_rates JSONB NOT NULL DEFAULT '[]'
     )
   `;
+  await sql`ALTER TABLE pricing ADD COLUMN IF NOT EXISTS tot_rate NUMERIC NOT NULL DEFAULT 12`;
+  await sql`ALTER TABLE pricing ADD COLUMN IF NOT EXISTS rental_agreement_url TEXT NOT NULL DEFAULT ''`;
+  await sql`ALTER TABLE pricing ADD COLUMN IF NOT EXISTS rental_agreement_name TEXT NOT NULL DEFAULT ''`;
+  await sql`ALTER TABLE pricing ADD COLUMN IF NOT EXISTS cancellation_policy TEXT NOT NULL DEFAULT '50% of paid prepayments refundable when canceled 30 day(s) before arrival or earlier.
+0% refundable if canceled after.'`;
+  await sql`ALTER TABLE pricing ADD COLUMN IF NOT EXISTS security_deposit_policy TEXT NOT NULL DEFAULT 'A pre-authorization of USD 5000.00 is held on 0 day(s) before arrival and voided on 7 day(s) after departure'`;
   // Seed default pricing if empty
   await sql`
     INSERT INTO pricing (property_slug, base_rate, cleaning_fee, weekly_discount, seasonal_rates)

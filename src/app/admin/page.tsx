@@ -32,6 +32,8 @@ import {
   ExternalLink,
   UserPlus,
   Receipt,
+  Upload,
+  FileText,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -68,6 +70,11 @@ interface PropertyPricing {
   cleaningFee: number;
   weeklyDiscount: number;
   seasonalRates: SeasonalRate[];
+  totRate: number;
+  rentalAgreementUrl: string;
+  rentalAgreementName: string;
+  cancellationPolicy: string;
+  securityDepositPolicy: string;
 }
 
 type PricingConfig = Record<string, PropertyPricing>;
@@ -661,6 +668,77 @@ const PROPERTY_LABELS: Record<string, string> = {
   turquoise: "Turquoise Tavern",
 };
 
+function RentalAgreementUpload({
+  slug,
+  url,
+  name,
+  authToken,
+  onUploaded,
+}: {
+  slug: string;
+  url: string;
+  name: string;
+  authToken: string;
+  onUploaded: (url: string, name: string) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("property", slug);
+      const res = await fetch("/api/admin/upload-agreement", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}` },
+        body: formData,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        onUploaded(data.url, data.name);
+      }
+    } catch {
+      // silent
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  }
+
+  if (url) {
+    return (
+      <div className="flex items-center gap-3">
+        <FileText className="h-5 w-5 text-muted-foreground" />
+        <span className="text-sm font-medium">{name || "Rental Agreement"}</span>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm text-blue-600 hover:underline"
+        >
+          View
+        </a>
+        <label className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
+          Replace
+          <input type="file" accept=".pdf" className="hidden" onChange={handleUpload} />
+        </label>
+        {uploading && <Loader2 className="h-4 w-4 animate-spin" />}
+      </div>
+    );
+  }
+
+  return (
+    <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed px-4 py-2 text-sm text-muted-foreground hover:bg-muted transition-colors">
+      <Upload className="h-4 w-4" />
+      {uploading ? "Uploading..." : "Upload PDF"}
+      <input type="file" accept=".pdf" className="hidden" onChange={handleUpload} />
+    </label>
+  );
+}
+
 function PricingTab({ authToken }: { authToken: string }) {
   const [pricing, setPricing] = useState<PricingConfig | null>(null);
   const [loading, setLoading] = useState(true);
@@ -710,7 +788,7 @@ function PricingTab({ authToken }: { authToken: string }) {
     }
   };
 
-  const updateField = (slug: string, field: keyof PropertyPricing, value: number) => {
+  const updateField = (slug: string, field: keyof PropertyPricing, value: number | string) => {
     if (!pricing) return;
     const updated = {
       ...pricing,
@@ -779,7 +857,7 @@ function PricingTab({ authToken }: { authToken: string }) {
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Base fields */}
-              <div className="grid gap-6 sm:grid-cols-3">
+              <div className="grid gap-6 sm:grid-cols-4">
                 <div>
                   <Label className="text-xs uppercase text-muted-foreground">
                     Base Nightly Rate
@@ -810,6 +888,86 @@ function PricingTab({ authToken }: { authToken: string }) {
                     onSave={(val) => updateField(slug, "weeklyDiscount", val)}
                   />
                 </div>
+                <div>
+                  <Label className="text-xs uppercase text-muted-foreground">
+                    Placer County TOT Tax
+                  </Label>
+                  <InlineEdit
+                    value={p.totRate}
+                    suffix="%"
+                    onSave={(val) => updateField(slug, "totRate", val)}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Applied to nightly rate only, not fees.</p>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Rental Agreement */}
+              <div>
+                <h4 className="mb-3 text-sm font-semibold">Rental Agreement</h4>
+                <RentalAgreementUpload
+                  slug={slug}
+                  url={p.rentalAgreementUrl}
+                  name={p.rentalAgreementName}
+                  authToken={authToken}
+                  onUploaded={(url, name) => {
+                    if (!pricing) return;
+                    const updated = {
+                      ...pricing,
+                      [slug]: { ...pricing[slug], rentalAgreementUrl: url, rentalAgreementName: name },
+                    };
+                    savePricing(updated);
+                  }}
+                />
+              </div>
+
+              <Separator />
+
+              {/* Cancellation Policy */}
+              <div>
+                <Label className="text-xs uppercase text-muted-foreground">
+                  Cancellation Policy
+                </Label>
+                <Textarea
+                  className="mt-1"
+                  rows={3}
+                  value={p.cancellationPolicy}
+                  onChange={(e) => {
+                    if (!pricing) return;
+                    const updated = {
+                      ...pricing,
+                      [slug]: { ...pricing[slug], cancellationPolicy: e.target.value },
+                    };
+                    setPricing(updated);
+                  }}
+                  onBlur={() => {
+                    if (pricing) savePricing(pricing);
+                  }}
+                />
+              </div>
+
+              {/* Security Deposit Policy */}
+              <div>
+                <Label className="text-xs uppercase text-muted-foreground">
+                  Security Deposit Policy
+                </Label>
+                <Textarea
+                  className="mt-1"
+                  rows={3}
+                  value={p.securityDepositPolicy}
+                  onChange={(e) => {
+                    if (!pricing) return;
+                    const updated = {
+                      ...pricing,
+                      [slug]: { ...pricing[slug], securityDepositPolicy: e.target.value },
+                    };
+                    setPricing(updated);
+                  }}
+                  onBlur={() => {
+                    if (pricing) savePricing(pricing);
+                  }}
+                />
               </div>
 
               <Separator />
