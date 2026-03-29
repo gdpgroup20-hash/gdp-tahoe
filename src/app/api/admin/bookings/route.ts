@@ -21,7 +21,23 @@ export async function GET(request: Request) {
 
   try {
     const bookings = await getBookings();
-    return NextResponse.json({ bookings });
+    
+    // Debug: also try raw query to see if table exists
+    const { getDb } = await import("@/lib/db");
+    const sql = getDb();
+    const tableCheck = await sql`
+      SELECT COUNT(*) as count FROM information_schema.tables 
+      WHERE table_schema = 'public' AND table_name = 'bookings'
+    `;
+    const rawCount = await sql`SELECT COUNT(*) as total FROM bookings`;
+    
+    return NextResponse.json({ 
+      bookings,
+      _debug: {
+        tableExists: Number(tableCheck[0]?.count) > 0,
+        rawRowCount: Number(rawCount[0]?.total),
+      }
+    });
   } catch (error) {
     console.error("Error fetching bookings:", error);
     const msg = error instanceof Error ? error.message : String(error);
