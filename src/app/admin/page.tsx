@@ -416,14 +416,16 @@ function ReservationsTab({
     ? allReservations
     : allReservations.filter((r) => r.source === sourceFilter);
 
-  const cancelled = filtered.filter((r) => r.status === "canceled" || r.status === "cancelled");
-  const active = filtered.filter((r) => r.status !== "canceled" && r.status !== "cancelled");
-  const upcoming = active.filter((r) => r.checkIn >= today);
-  const past = active.filter((r) => r.checkIn < today);
+  const isCancelled = (r: UnifiedReservation) =>
+    r.status === "canceled" || r.status === "cancelled" ||
+    r.status.toLowerCase().includes("cancel");
+  const cancelled = filtered.filter(isCancelled);
+  const upcoming = filtered.filter((r) => !isCancelled(r) && r.checkIn >= today);
+  const past = filtered.filter((r) => !isCancelled(r) && r.checkIn < today);
   const displayed = subTab === "upcoming" ? upcoming : subTab === "past" ? past : cancelled;
 
-  const directBookings = bookings.filter((b) => b.status !== "cancelled").length;
-  const platformCount = platformReservations.filter((p) => p.source === "airbnb" || p.source === "vrbo").filter((p) => p.status !== "canceled" && p.status !== "cancelled").length;
+  const directBookings = bookings.filter((b) => !b.status.toLowerCase().includes("cancel")).length;
+  const platformCount = platformReservations.filter((p) => (p.source === "airbnb" || p.source === "vrbo") && !p.status.toLowerCase().includes("cancel")).length;
   const totalRevenue = bookings
     .filter((b) => b.status !== "cancelled")
     .reduce((sum, b) => sum + b.totalPrice, 0);
