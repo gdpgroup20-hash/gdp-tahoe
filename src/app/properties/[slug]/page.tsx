@@ -77,9 +77,9 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
   }
 
   // Fetch live pricing from DB
-  let liveNightlyRate = property.nightlyRate;
-  let liveCleaningFee = liveCleaningFee;
-  let liveWeeklyDiscount = liveWeeklyDiscount;
+  let liveNightlyRate: number = property.nightlyRate;
+  let liveCleaningFee: number = property.cleaningFee;
+  let liveWeeklyDiscount: number = property.weeklyDiscount;
   try {
     const { getPricingForProperty } = await import("@/lib/pricing");
     const livePricing = await getPricingForProperty(slug);
