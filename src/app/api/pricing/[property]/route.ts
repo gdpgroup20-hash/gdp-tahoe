@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getPricingForProperty } from "@/lib/pricing";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(
   _request: Request,
@@ -13,7 +14,7 @@ export async function GET(
     if (!pricing) {
       return NextResponse.json({ error: "Property not found" }, { status: 404 });
     }
-    return NextResponse.json({
+    const response = NextResponse.json({
       baseRate: pricing.baseRate,
       cleaningFee: pricing.cleaningFee,
       weeklyDiscount: pricing.weeklyDiscount,
@@ -23,6 +24,9 @@ export async function GET(
       rentalAgreementUrl: pricing.rentalAgreementUrl ?? "",
       rentalAgreementName: pricing.rentalAgreementName ?? "",
     });
+    response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+    response.headers.set("Pragma", "no-cache");
+    return response;
   } catch (error) {
     console.error("Error reading pricing:", error);
     return NextResponse.json({ error: "Failed to read pricing" }, { status: 500 });
