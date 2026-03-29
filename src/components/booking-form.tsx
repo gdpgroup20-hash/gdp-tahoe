@@ -262,20 +262,19 @@ function PaymentStep({
                   className="mt-0.5 h-4 w-4 rounded border-gray-300"
                 />
                 <label htmlFor="accept-policies" className="text-sm leading-snug">
-                  I have read and accept the cancellation policy
+                  I have read and accept the cancellation policy and the{" "}
                   {policies.rentalAgreementUrl ? (
-                    <>
-                      {" and the "}
-                      <a
-                        href={policies.rentalAgreementUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 underline hover:text-blue-800"
-                      >
-                        rental agreement
-                      </a>
-                    </>
-                  ) : null}
+                    <a
+                      href={policies.rentalAgreementUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#0f1d3d] underline underline-offset-2 hover:text-[#0f1d3d]/70"
+                    >
+                      rental agreement
+                    </a>
+                  ) : (
+                    <span className="text-muted-foreground">rental agreement</span>
+                  )}
                   .
                 </label>
               </div>
