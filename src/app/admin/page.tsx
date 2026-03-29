@@ -328,6 +328,13 @@ function InlineEdit({
         onChange={(e) => setDraft(e.target.value)}
         className="h-8 w-28"
         autoFocus
+        onBlur={() => {
+          const num = parseFloat(draft);
+          if (!isNaN(num) && num !== value) {
+            onSave(num);
+          }
+          setEditing(false);
+        }}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             const num = parseFloat(draft);
