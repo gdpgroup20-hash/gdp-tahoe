@@ -6,7 +6,10 @@ export function getDb() {
   return neon(url);
 }
 
+let initialized = false;
+
 export async function initDb() {
+  if (initialized) return; // Skip if already initialized in this serverless instance
   const sql = getDb();
   await sql`
     CREATE TABLE IF NOT EXISTS bookings (
@@ -556,16 +559,19 @@ export async function initDb() {
       updated_at TEXT NOT NULL
     )
   `;
-  // Seed from static blog posts
-  const { getAllPosts } = await import("./blog");
-  const staticPosts = getAllPosts();
-  for (const post of staticPosts) {
-    const now = new Date().toISOString().split("T")[0];
-    await sql`
-      INSERT INTO blog_posts (slug, title, excerpt, category, cover_image, published_at, read_time, body, published, created_at, updated_at)
-      VALUES (${post.slug}, ${post.title}, ${post.excerpt}, ${post.category}, ${post.coverImage}, ${post.publishedAt}, ${post.readTime}, ${post.body}, 1, ${now}, ${now})
-      ON CONFLICT (slug) DO NOTHING
-    `;
+  // Seed blog posts only if table is empty (avoid seeding on every request)
+  const existingPosts = await sql`SELECT COUNT(*) as count FROM blog_posts`;
+  if (Number(existingPosts[0]?.count) === 0) {
+    const { getAllPosts } = await import("./blog");
+    const staticPosts = getAllPosts();
+    for (const post of staticPosts) {
+      const now = new Date().toISOString().split("T")[0];
+      await sql`
+        INSERT INTO blog_posts (slug, title, excerpt, category, cover_image, published_at, read_time, body, published, created_at, updated_at)
+        VALUES (${post.slug}, ${post.title}, ${post.excerpt}, ${post.category}, ${post.coverImage}, ${post.publishedAt}, ${post.readTime}, ${post.body}, 1, ${now}, ${now})
+        ON CONFLICT (slug) DO NOTHING
+      `;
+    }
   }
 
   // ─── Email Templates ────────────────────────────────────────────────────────
@@ -626,4 +632,6 @@ export async function initDb() {
       1, 1, ${tplNow}
     ) ON CONFLICT (id) DO NOTHING
   `;
+
+  initialized = true;
 }
