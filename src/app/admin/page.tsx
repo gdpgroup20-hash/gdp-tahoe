@@ -924,7 +924,7 @@ function PricingTab({ authToken }: { authToken: string }) {
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Base fields */}
-              <div className="grid gap-6 sm:grid-cols-4">
+              <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
                   <Label className="text-xs uppercase text-muted-foreground">
                     Base Nightly Rate
@@ -3798,6 +3798,7 @@ interface EmailTemplate {
   daysOffset: number;
   enabled: boolean;
   updatedAt: string;
+  propertySlug: string;
 }
 
 const TRIGGER_LABELS: Record<string, string> = {
@@ -3838,6 +3839,7 @@ function MessagesTab({ authToken }: { authToken: string }) {
   const [editDaysOffset, setEditDaysOffset] = useState(0);
   const [saving, setSaving] = useState(false);
   const [savedId, setSavedId] = useState<string | null>(null);
+  const [selectedProperty, setSelectedProperty] = useState<string>("elevation-estate");
 
   const fetchTemplates = useCallback(async () => {
     try {
@@ -3856,6 +3858,8 @@ function MessagesTab({ authToken }: { authToken: string }) {
   }, [authToken]);
 
   useEffect(() => { fetchTemplates(); }, [fetchTemplates]);
+
+  const filteredTemplates = templates.filter((t) => t.propertySlug === selectedProperty);
 
   const handleExpand = (tpl: EmailTemplate) => {
     if (expandedId === tpl.id) {
@@ -3913,14 +3917,38 @@ function MessagesTab({ authToken }: { authToken: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold">Email Templates</h2>
           <p className="text-sm text-muted-foreground">Automated emails sent at key points in the guest journey</p>
         </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => { setSelectedProperty("elevation-estate"); setExpandedId(null); }}
+            className={cn(
+              "px-4 py-1.5 rounded-full text-sm font-medium transition-colors",
+              selectedProperty === "elevation-estate"
+                ? "bg-[#0f1d3d] text-white"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            )}
+          >
+            Elevation Estate
+          </button>
+          <button
+            onClick={() => { setSelectedProperty("turquoise"); setExpandedId(null); }}
+            className={cn(
+              "px-4 py-1.5 rounded-full text-sm font-medium transition-colors",
+              selectedProperty === "turquoise"
+                ? "bg-[#0f1d3d] text-white"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            )}
+          >
+            Turquoise Tavern
+          </button>
+        </div>
       </div>
 
-      {templates.map((tpl) => {
+      {filteredTemplates.map((tpl) => {
         const isExpanded = expandedId === tpl.id;
         const hasTiming = tpl.trigger === "pre_checkin" || tpl.trigger === "post_checkout";
 
@@ -4199,8 +4227,8 @@ export default function AdminPage() {
         </div>
       </header>
 
-      {/* Tab Navigation */}
-      <div className="border-b bg-white">
+      {/* Tab Navigation — Desktop (hidden on mobile) */}
+      <div className="hidden md:block border-b bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <nav className="flex gap-1 -mb-px">
             {tabs.map((tab) => (
@@ -4222,7 +4250,28 @@ export default function AdminPage() {
         </div>
       </div>
 
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+      {/* Bottom Navigation — Mobile only */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200">
+        <nav className="flex overflow-x-auto">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "flex flex-col items-center justify-center min-w-[64px] flex-1 py-2 px-1 text-[10px] font-medium transition-colors",
+                activeTab === tab.id
+                  ? "text-[#0f1d3d]"
+                  : "text-muted-foreground"
+              )}
+            >
+              {tab.icon}
+              <span className="mt-0.5 truncate">{tab.label}</span>
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      <main className="mx-auto max-w-7xl px-4 py-6 pb-24 md:pb-6 sm:px-6">
         {activeTab === "reservations" && (
           <ReservationsTab bookings={bookings} loading={loading} authToken={authToken} />
         )}

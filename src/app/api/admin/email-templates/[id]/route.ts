@@ -24,6 +24,7 @@ export async function PATCH(
       body: body.body,
       daysOffset: body.daysOffset,
       enabled: body.enabled,
+      propertySlug: body.propertySlug,
     });
     const updated = await getTemplate(params.id);
     return NextResponse.json({ template: updated });

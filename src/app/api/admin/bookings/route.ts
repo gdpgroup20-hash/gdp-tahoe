@@ -1,17 +1,14 @@
 import { NextResponse } from "next/server";
-
 export const dynamic = "force-dynamic";
 
 function checkAuth(request: Request): boolean {
   const authHeader = request.headers.get("authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) return false;
+  if (!authHeader?.startsWith("Bearer ")) return false;
   return authHeader.replace("Bearer ", "") === process.env.ADMIN_PASSWORD;
 }
 
 export async function GET(request: Request) {
-  if (!checkAuth(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!checkAuth(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
     const { getDb } = await import("@/lib/db");
     const sql = getDb();
@@ -34,7 +31,6 @@ export async function GET(request: Request) {
     }));
     return NextResponse.json({ bookings });
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: msg, bookings: [] }, { status: 500 });
+    return NextResponse.json({ error: String(error), bookings: [] }, { status: 500 });
   }
 }

@@ -1,4 +1,4 @@
-import { getDb, initDb } from "@/lib/db";
+import { getDb } from "@/lib/db";
 
 export interface Booking {
   id: string;
@@ -43,7 +43,6 @@ export async function getBookings(): Promise<Booking[]> {
 }
 
 export async function addBooking(booking: Booking): Promise<void> {
-  await initDb();
   const sql = getDb();
   await sql`
     INSERT INTO bookings (
@@ -74,7 +73,6 @@ export async function updateBookingStatus(
 }
 
 export async function getBookingsByProperty(propertySlug: string): Promise<Booking[]> {
-  await initDb();
   const sql = getDb();
   const rows = await sql`
     SELECT * FROM bookings WHERE property_slug = ${propertySlug} ORDER BY created_at DESC

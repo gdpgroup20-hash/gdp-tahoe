@@ -125,9 +125,9 @@ export async function POST(request: Request) {
             recommendations_url: "https://www.staygdptahoe.com/recommendations",
           };
 
-          // 1. Guest confirmation email
+          // 1. Guest confirmation email (per-property template)
           try {
-            const tpl = await getTemplate("tpl-booking-confirmed");
+            const tpl = await getTemplate(`tpl-booking-confirmed-${booking.propertySlug}`);
             if (tpl && tpl.enabled && booking.guestEmail) {
               const subject = fillTemplate(tpl.subject, vars);
               const bodyText = fillTemplate(tpl.body, vars);
@@ -136,9 +136,9 @@ export async function POST(request: Request) {
             }
           } catch (e) { console.error("Guest confirmation email failed:", e); }
 
-          // 2. Owner notification email
+          // 2. Owner notification email (per-property template)
           try {
-            const tpl = await getTemplate("tpl-owner-notification");
+            const tpl = await getTemplate(`tpl-owner-notification-${booking.propertySlug}`);
             if (tpl && tpl.enabled) {
               const subject = fillTemplate(tpl.subject, vars);
               const bodyText = fillTemplate(tpl.body, vars);

@@ -16,7 +16,14 @@ export async function GET(request: Request) {
   }
   try {
     const templates = await getTemplates();
-    return NextResponse.json({ templates });
+    // Group by property
+    const grouped: Record<string, typeof templates> = {};
+    for (const tpl of templates) {
+      const key = tpl.propertySlug;
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(tpl);
+    }
+    return NextResponse.json({ templates, grouped });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     return NextResponse.json({ error: msg }, { status: 500 });
