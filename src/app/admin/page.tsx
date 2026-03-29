@@ -34,6 +34,9 @@ import {
   Receipt,
   Upload,
   FileText,
+  BookOpen,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -3330,9 +3333,406 @@ function ExpensesTab({ authToken }: { authToken: string }) {
   );
 }
 
+// ─── Journal Tab ────────────────────────────────────────────────────────────
+
+interface BlogPostAdmin {
+  slug: string;
+  title: string;
+  excerpt: string;
+  category: string;
+  coverImage: string;
+  publishedAt: string;
+  readTime: number;
+  body: string;
+  published: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const BLOG_CATEGORIES = ["Local Guide", "Dining", "Activities", "Events", "Property"];
+
+const AVAILABLE_IMAGES = [
+  // Elevation gallery
+  "/images/elevation/1dd91567-0181-4000-b42f-a0dcd0cf3e68.jpeg",
+  "/images/elevation/44a72b09-8b5f-430a-a86c-31719c2f0af4.jpeg",
+  "/images/elevation/ae06b179-6696-4fcc-8753-8bafbc2a7ddd.jpeg",
+  "/images/elevation/ca9ed745-e163-4fba-816f-3a14b397214f.jpeg",
+  "/images/elevation/4fe2b174-7a8f-4966-932c-892bc3e4ba68.jpeg",
+  "/images/elevation/fd9d9953-faa7-40e4-bf43-0a518420f7d4.jpeg",
+  // Turquoise
+  ...Array.from({ length: 17 }, (_, i) => `/images/turquoise/photo_${String(i + 1).padStart(2, "0")}.png`),
+];
+
+function toSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function JournalTab({ authToken }: { authToken: string }) {
+  const [posts, setPosts] = useState<BlogPostAdmin[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<BlogPostAdmin | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [titleTouched, setTitleTouched] = useState(false);
+
+  const fetchPosts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/blog", {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (res.ok) {
+        setPosts(await res.json());
+      }
+    } catch {
+      // silent
+    } finally {
+      setLoading(false);
+    }
+  }, [authToken]);
+
+  useEffect(() => {
+    fetchPosts();
+  }, [fetchPosts]);
+
+  const handleNew = () => {
+    const now = new Date().toISOString().split("T")[0];
+    setTitleTouched(false);
+    setEditing({
+      slug: "",
+      title: "",
+      excerpt: "",
+      category: "Local Guide",
+      coverImage: "",
+      publishedAt: now,
+      readTime: 5,
+      body: "",
+      published: false,
+      createdAt: now,
+      updatedAt: now,
+    });
+  };
+
+  const handleEdit = (post: BlogPostAdmin) => {
+    setTitleTouched(true);
+    setEditing({ ...post });
+  };
+
+  const handleDelete = async (slug: string) => {
+    if (!confirm("Delete this post? This cannot be undone.")) return;
+    await fetch(`/api/admin/blog/${slug}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${authToken}` },
+    });
+    fetchPosts();
+  };
+
+  const handleSave = async () => {
+    if (!editing) return;
+    setSaving(true);
+    try {
+      await fetch("/api/admin/blog", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(editing),
+      });
+      setEditing(null);
+      fetchPosts();
+    } catch {
+      alert("Failed to save post.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateField = <K extends keyof BlogPostAdmin>(key: K, value: BlogPostAdmin[K]) => {
+    if (!editing) return;
+    const updated = { ...editing, [key]: value };
+    // Auto-generate slug from title if not yet manually edited
+    if (key === "title" && !titleTouched) {
+      updated.slug = toSlug(value as string);
+    }
+    if (key === "slug") {
+      setTitleTouched(true);
+    }
+    setEditing(updated);
+  };
+
+  // ── Post Editor ──
+  if (editing) {
+    return (
+      <div className="space-y-6">
+        <button
+          onClick={() => setEditing(null)}
+          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" /> All Posts
+        </button>
+
+        <Card>
+          <CardContent className="pt-6 space-y-5">
+            {/* Title */}
+            <div className="space-y-1">
+              <Label>Title</Label>
+              <Input
+                value={editing.title}
+                onChange={(e) => updateField("title", e.target.value)}
+                className="text-lg font-semibold"
+                placeholder="Post title"
+              />
+              <p className="text-xs text-muted-foreground">
+                Slug: <code className="bg-gray-100 px-1 rounded">{editing.slug || "auto-generated"}</code>
+                {" "}
+                <button
+                  className="text-blue-600 underline text-xs"
+                  onClick={() => {
+                    const custom = prompt("Edit slug:", editing.slug);
+                    if (custom !== null) {
+                      updateField("slug", toSlug(custom));
+                    }
+                  }}
+                >
+                  edit
+                </button>
+              </p>
+            </div>
+
+            {/* Excerpt */}
+            <div className="space-y-1">
+              <Label>Excerpt</Label>
+              <Textarea
+                value={editing.excerpt}
+                onChange={(e) => updateField("excerpt", e.target.value)}
+                rows={3}
+                placeholder="Short description for the blog listing"
+              />
+            </div>
+
+            {/* Category + Date + Read Time row */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-1">
+                <Label>Category</Label>
+                <select
+                  value={editing.category}
+                  onChange={(e) => updateField("category", e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  {BLOG_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label>Published Date</Label>
+                <Input
+                  type="date"
+                  value={editing.publishedAt}
+                  onChange={(e) => updateField("publishedAt", e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Read Time (min)</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={editing.readTime}
+                  onChange={(e) => updateField("readTime", parseInt(e.target.value) || 5)}
+                />
+              </div>
+            </div>
+
+            {/* Cover Image */}
+            <div className="space-y-2">
+              <Label>Cover Image</Label>
+              <Input
+                value={editing.coverImage}
+                onChange={(e) => updateField("coverImage", e.target.value)}
+                placeholder="/images/elevation/abc.jpeg"
+              />
+              {editing.coverImage && (
+                <div className="w-40 h-24 relative rounded overflow-hidden border">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={editing.coverImage} alt="Cover preview" className="w-full h-full object-cover" />
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">Pick from property photos:</p>
+              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 max-h-48 overflow-y-auto border rounded p-2">
+                {AVAILABLE_IMAGES.map((img) => (
+                  <button
+                    key={img}
+                    type="button"
+                    onClick={() => updateField("coverImage", img)}
+                    className={cn(
+                      "relative aspect-square rounded overflow-hidden border-2 transition-all",
+                      editing.coverImage === img ? "border-blue-600 ring-2 ring-blue-300" : "border-transparent hover:border-gray-300"
+                    )}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={img} alt="" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Published toggle */}
+            <div className="flex items-center gap-3">
+              <Label>Published</Label>
+              <button
+                type="button"
+                onClick={() => updateField("published", !editing.published)}
+                className={cn(
+                  "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                  editing.published ? "bg-green-600" : "bg-gray-300"
+                )}
+              >
+                <span
+                  className={cn(
+                    "inline-block h-4 w-4 rounded-full bg-white transition-transform",
+                    editing.published ? "translate-x-6" : "translate-x-1"
+                  )}
+                />
+              </button>
+              <span className="text-sm text-muted-foreground">
+                {editing.published ? "Public" : "Draft"}
+              </span>
+            </div>
+
+            {/* Body */}
+            <div className="space-y-1">
+              <Label>HTML Body — supports full HTML</Label>
+              <Textarea
+                value={editing.body}
+                onChange={(e) => updateField("body", e.target.value)}
+                rows={18}
+                className="font-mono text-xs"
+                placeholder="<p>Write your post content here...</p>"
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-3 pt-2">
+              <Button
+                onClick={handleSave}
+                disabled={saving || !editing.title || !editing.slug}
+                className="bg-[#0f1d3d] hover:bg-[#1a2d5c]"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
+                Save Post
+              </Button>
+              <Button variant="outline" onClick={() => setEditing(null)}>
+                Cancel
+              </Button>
+              {editing.slug && (
+                <a
+                  href={`/blog/${editing.slug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-sm text-blue-600 hover:underline ml-auto"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" /> Preview
+                </a>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // ── Post List ──
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Journal Posts</h2>
+        <Button onClick={handleNew} className="bg-[#0f1d3d] hover:bg-[#1a2d5c]">
+          <Plus className="h-4 w-4 mr-2" /> New Post
+        </Button>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : posts.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            No blog posts yet. Click &ldquo;New Post&rdquo; to create one.
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-gray-50">
+                  <th className="text-left px-4 py-3 font-medium">Title</th>
+                  <th className="text-left px-4 py-3 font-medium">Category</th>
+                  <th className="text-left px-4 py-3 font-medium">Published</th>
+                  <th className="text-left px-4 py-3 font-medium">Status</th>
+                  <th className="text-right px-4 py-3 font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {posts.map((post) => (
+                  <tr
+                    key={post.slug}
+                    className="border-b hover:bg-gray-50 cursor-pointer"
+                    onClick={() => handleEdit(post)}
+                  >
+                    <td className="px-4 py-3 font-medium">{post.title}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{post.category}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{formatDate(post.publishedAt)}</td>
+                    <td className="px-4 py-3">
+                      <Badge className={cn(
+                        post.published
+                          ? "bg-green-100 text-green-800 hover:bg-green-100"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-100"
+                      )}>
+                        {post.published ? (
+                          <><Eye className="h-3 w-3 mr-1" /> Published</>
+                        ) : (
+                          <><EyeOff className="h-3 w-3 mr-1" /> Draft</>
+                        )}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEdit(post)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => handleDelete(post.slug)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Admin Page ─────────────────────────────────────────────────────────
 
-type Tab = "reservations" | "calendar" | "pricing" | "maintenance" | "expenses" | "campaigns" | "contacts" | "settings";
+type Tab = "reservations" | "calendar" | "pricing" | "maintenance" | "expenses" | "campaigns" | "contacts" | "journal" | "settings";
 
 export default function AdminPage() {
   const [password, setPassword] = useState("");
@@ -3455,6 +3855,7 @@ export default function AdminPage() {
     { id: "expenses", label: "Expenses", icon: <Receipt className="h-4 w-4" /> },
     { id: "campaigns", label: "Campaigns", icon: <Send className="h-4 w-4" /> },
     { id: "contacts", label: "Contacts", icon: <Phone className="h-4 w-4" /> },
+    { id: "journal", label: "Journal", icon: <BookOpen className="h-4 w-4" /> },
     { id: "settings", label: "Settings", icon: <Settings className="h-4 w-4" /> },
   ];
 
@@ -3523,6 +3924,7 @@ export default function AdminPage() {
         {activeTab === "expenses" && <ExpensesTab authToken={authToken} />}
         {activeTab === "campaigns" && <CampaignsTab authToken={authToken} />}
         {activeTab === "contacts" && <ContactsTab authToken={authToken} />}
+        {activeTab === "journal" && <JournalTab authToken={authToken} />}
         {activeTab === "settings" && <SettingsTab />}
       </main>
     </div>

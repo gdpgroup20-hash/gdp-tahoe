@@ -539,4 +539,32 @@ export async function initDb() {
     VALUES ('contact-westshore-main', 'vendor-westshore', 'Restaurant', '', '(530) 525-5200', '5160 West Lake Blvd., Homewood, CA')
     ON CONFLICT (id) DO NOTHING
   `;
+
+  // ─── Blog Posts ─────────────────────────────────────────────────────────────
+  await sql`
+    CREATE TABLE IF NOT EXISTS blog_posts (
+      slug TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      excerpt TEXT NOT NULL DEFAULT '',
+      category TEXT NOT NULL DEFAULT 'Local Guide',
+      cover_image TEXT NOT NULL DEFAULT '',
+      published_at TEXT NOT NULL,
+      read_time INTEGER NOT NULL DEFAULT 5,
+      body TEXT NOT NULL DEFAULT '',
+      published INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `;
+  // Seed from static blog posts
+  const { getAllPosts } = await import("./blog");
+  const staticPosts = getAllPosts();
+  for (const post of staticPosts) {
+    const now = new Date().toISOString().split("T")[0];
+    await sql`
+      INSERT INTO blog_posts (slug, title, excerpt, category, cover_image, published_at, read_time, body, published, created_at, updated_at)
+      VALUES (${post.slug}, ${post.title}, ${post.excerpt}, ${post.category}, ${post.coverImage}, ${post.publishedAt}, ${post.readTime}, ${post.body}, 1, ${now}, ${now})
+      ON CONFLICT (slug) DO NOTHING
+    `;
+  }
 }

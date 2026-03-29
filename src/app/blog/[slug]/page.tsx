@@ -3,21 +3,19 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { getPostBySlug, getAllSlugs } from "@/lib/blog";
+import { getPostDB } from "@/lib/blog-db";
+
+export const dynamic = "force-dynamic";
 
 interface BlogPostPageProps {
   params: Promise<{ slug: string }>;
-}
-
-export async function generateStaticParams() {
-  return getAllSlugs().map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({
   params,
 }: BlogPostPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const post = getPostBySlug(slug);
+  const post = await getPostDB(slug);
 
   if (!post) {
     return { title: "Post Not Found | GDP Tahoe" };
@@ -64,7 +62,7 @@ const categoryColors: Record<string, string> = {
 
 export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const { slug } = await params;
-  const post = getPostBySlug(slug);
+  const post = await getPostDB(slug);
 
   if (!post) {
     notFound();

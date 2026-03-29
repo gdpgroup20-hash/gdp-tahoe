@@ -1,7 +1,9 @@
 import { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { getAllPosts } from "@/lib/blog";
+import { getPublishedPostsDB } from "@/lib/blog-db";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Journal — Stories & Guides from North Lake Tahoe | GDP Tahoe",
@@ -20,8 +22,8 @@ const categoryColors: Record<string, string> = {
   Property: "bg-rose-600",
 };
 
-export default function BlogPage() {
-  const posts = getAllPosts();
+export default async function BlogPage() {
+  const posts = await getPublishedPostsDB();
 
   return (
     <main className="min-h-screen bg-white">
