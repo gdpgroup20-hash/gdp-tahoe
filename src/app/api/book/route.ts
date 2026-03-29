@@ -84,22 +84,28 @@ export async function POST(request: Request) {
     });
 
     // Save booking with status "pending"
-    await addBooking({
-      id: bookingId,
-      propertySlug,
-      propertyName: property.name,
-      guestName,
-      guestEmail,
-      guestPhone,
-      checkIn,
-      checkOut,
-      guests,
-      specialRequests: specialRequests || "",
-      totalPrice: pricing.total,
-      stripePaymentIntentId: paymentIntent.id,
-      status: "pending",
-      createdAt: new Date().toISOString(),
-    });
+    try {
+      await addBooking({
+        id: bookingId,
+        propertySlug,
+        propertyName: property.name,
+        guestName,
+        guestEmail,
+        guestPhone,
+        checkIn,
+        checkOut,
+        guests,
+        specialRequests: specialRequests || "",
+        totalPrice: pricing.total,
+        stripePaymentIntentId: paymentIntent.id,
+        status: "pending",
+        createdAt: new Date().toISOString(),
+      });
+      console.log(`[Book] Booking saved: ${bookingId}`);
+    } catch (dbErr) {
+      console.error(`[Book] DB save failed for ${bookingId}:`, dbErr);
+      // Still return success — Stripe charged, we'll reconcile manually
+    }
 
     return NextResponse.json({
       bookingId,
