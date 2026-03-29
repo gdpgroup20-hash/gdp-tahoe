@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { neon } from "@neondatabase/serverless";
+
 export const dynamic = "force-dynamic";
 
 function checkAuth(request: Request): boolean {
@@ -8,13 +10,23 @@ function checkAuth(request: Request): boolean {
 }
 
 export async function GET(request: Request) {
-  if (!checkAuth(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!checkAuth(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
-    const { getDb } = await import("@/lib/db");
-    const sql = getDb();
-    // Debug: which DB are we connected to?
-    const dbInfo = await sql`SELECT current_database(), (SELECT COUNT(*) FROM bookings) as booking_count`;
-    console.log('[Bookings] DB:', dbInfo[0]);
+    // Try all possible DB env vars explicitly
+    const url =
+      process.env.DATABASE_URL ||
+      process.env.POSTGRES_URL ||
+      process.env.POSTGRES_PRISMA_URL ||
+      process.env.POSTGRES_URL_NON_POOLING ||
+      process.env.STORAGE_URL;
+
+    if (!url) {
+      return NextResponse.json({ error: "No DB URL found", bookings: [], envKeys: Object.keys(process.env).filter(k => k.includes('POSTGRES') || k.includes('DATABASE') || k.includes('NEON') || k.includes('STORAGE')) }, { status: 500 });
+    }
+
+    const sql = neon(url);
     const rows = await sql`SELECT * FROM bookings ORDER BY created_at DESC`;
     const bookings = rows.map((row: Record<string, unknown>) => ({
       id: String(row.id || ""),
@@ -32,9 +44,9 @@ export async function GET(request: Request) {
       status: String(row.status || "pending"),
       createdAt: String(row.created_at || ""),
     }));
-    return NextResponse.json({ bookings });
+    return NextResponse.json({ bookings, _urlPrefix: url.substring(0, 40) });
   } catch (error) {
-    return NextResponse.json({ error: String(error), bookings: [] }, { status: 500 });
+    const msg = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: msg, bookings: [] }, { status: 500 });
   }
 }
-// Sun Mar 29 01:55:10 PDT 2026
