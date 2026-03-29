@@ -60,7 +60,18 @@ export async function PUT(request: Request) {
   }
   const { getDb } = await import("@/lib/db");
   const sql = getDb();
-  const sample = await sql`SELECT * FROM bookings LIMIT 2`;
-  const count = await sql`SELECT COUNT(*) as c FROM bookings`;
-  return NextResponse.json({ sample, count: count[0] });
+  // Add missing columns
+  try { await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS property_slug TEXT NOT NULL DEFAULT ''`; } catch {}
+  try { await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS property_name TEXT NOT NULL DEFAULT ''`; } catch {}
+  try { await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS guest_email TEXT NOT NULL DEFAULT ''`; } catch {}
+  try { await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS guest_phone TEXT NOT NULL DEFAULT ''`; } catch {}
+  try { await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS check_out TEXT NOT NULL DEFAULT ''`; } catch {}
+  try { await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS guests INTEGER NOT NULL DEFAULT 1`; } catch {}
+  try { await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS special_requests TEXT NOT NULL DEFAULT ''`; } catch {}
+  try { await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS total_price NUMERIC NOT NULL DEFAULT 0`; } catch {}
+  try { await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS stripe_payment_intent_id TEXT NOT NULL DEFAULT ''`; } catch {}
+  try { await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS created_at TEXT NOT NULL DEFAULT ''`; } catch {}
+  
+  const cols = await sql`SELECT column_name FROM information_schema.columns WHERE table_name = 'bookings' ORDER BY ordinal_position`;
+  return NextResponse.json({ columns: cols.map((c: Record<string,unknown>) => c.column_name) });
 }
