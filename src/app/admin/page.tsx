@@ -692,19 +692,24 @@ function RentalAgreementUpload({
   name,
   authToken,
   onUploaded,
+  onDeleted,
 }: {
   slug: string;
   url: string;
   name: string;
   authToken: string;
   onUploaded: (url: string, name: string) => void;
+  onDeleted: () => void;
 }) {
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!file.name.endsWith(".pdf")) { setError("Only PDF files are allowed."); return; }
     setUploading(true);
+    setError("");
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -717,9 +722,11 @@ function RentalAgreementUpload({
       if (res.ok) {
         const data = await res.json();
         onUploaded(data.url, data.name);
+      } else {
+        setError("Upload failed. Please try again.");
       }
     } catch {
-      // silent
+      setError("Upload failed. Please try again.");
     } finally {
       setUploading(false);
       e.target.value = "";
@@ -728,32 +735,50 @@ function RentalAgreementUpload({
 
   if (url) {
     return (
-      <div className="flex items-center gap-3">
-        <FileText className="h-5 w-5 text-muted-foreground" />
-        <span className="text-sm font-medium">{name || "Rental Agreement"}</span>
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-sm text-blue-600 hover:underline"
-        >
-          View
-        </a>
-        <label className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
-          Replace
-          <input type="file" accept=".pdf" className="hidden" onChange={handleUpload} />
-        </label>
-        {uploading && <Loader2 className="h-4 w-4 animate-spin" />}
+      <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+        <div className="flex items-start gap-4">
+          {/* PDF preview icon */}
+          <div className="flex h-16 w-12 shrink-0 flex-col items-center justify-center rounded border border-red-200 bg-white shadow-sm">
+            <div className="w-full rounded-t bg-red-500 px-1 py-0.5 text-center text-[8px] font-bold text-white">PDF</div>
+            <FileText className="mt-1 h-6 w-6 text-red-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span className="text-xs font-semibold text-green-700 uppercase tracking-wide">✓ Uploaded</span>
+            </div>
+            <p className="text-sm font-medium text-[#0f1d3d] truncate">{name || "Rental Agreement"}</p>
+            <div className="flex items-center gap-3 mt-2">
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-medium text-[#0f1d3d] border border-[#0f1d3d]/20 rounded px-2.5 py-1 hover:bg-[#0f1d3d] hover:text-white transition-colors"
+              >
+                <FileText className="h-3 w-3" /> View PDF
+              </a>
+              <button
+                type="button"
+                onClick={onDeleted}
+                className="inline-flex items-center gap-1 text-xs font-medium text-red-600 border border-red-200 rounded px-2.5 py-1 hover:bg-red-50 transition-colors"
+              >
+                <Trash2 className="h-3 w-3" /> Delete
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed px-4 py-2 text-sm text-muted-foreground hover:bg-muted transition-colors">
-      <Upload className="h-4 w-4" />
-      {uploading ? "Uploading..." : "Upload PDF"}
-      <input type="file" accept=".pdf" className="hidden" onChange={handleUpload} />
-    </label>
+    <div>
+      <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-[#0f1d3d]/30 px-4 py-3 text-sm text-muted-foreground hover:bg-muted hover:text-[#0f1d3d] transition-colors">
+        <Upload className="h-4 w-4" />
+        {uploading ? <><Loader2 className="h-4 w-4 animate-spin" /> Uploading...</> : "Upload Rental Agreement (PDF)"}
+        <input type="file" accept=".pdf" className="hidden" onChange={handleUpload} disabled={uploading} />
+      </label>
+      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+    </div>
   );
 }
 
@@ -934,6 +959,14 @@ function PricingTab({ authToken }: { authToken: string }) {
                     const updated = {
                       ...pricing,
                       [slug]: { ...pricing[slug], rentalAgreementUrl: url, rentalAgreementName: name },
+                    };
+                    savePricing(updated);
+                  }}
+                  onDeleted={() => {
+                    if (!pricing) return;
+                    const updated = {
+                      ...pricing,
+                      [slug]: { ...pricing[slug], rentalAgreementUrl: "", rentalAgreementName: "" },
                     };
                     savePricing(updated);
                   }}
