@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { getProperty } from "@/lib/properties";
 import { calculatePriceWithSeasonalRates } from "@/lib/availability";
 import { addBooking, generateBookingId } from "@/lib/bookings";
+import { getPricingForProperty } from "@/lib/pricing";
 
 export async function POST(request: Request) {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -50,12 +51,18 @@ export async function POST(request: Request) {
       );
     }
 
+    // Get live pricing from DB (overrides hardcoded property values)
+    const livePricing = await getPricingForProperty(propertySlug);
+    const nightlyRate = livePricing?.baseRate ?? property.nightlyRate;
+    const weeklyDiscount = livePricing?.weeklyDiscount ?? property.weeklyDiscount;
+    const cleaningFee = livePricing?.cleaningFee ?? property.cleaningFee;
+
     // Calculate price (with seasonal rate support)
     const pricing = await calculatePriceWithSeasonalRates(
       propertySlug,
-      property.nightlyRate,
-      property.weeklyDiscount,
-      property.cleaningFee,
+      nightlyRate,
+      weeklyDiscount,
+      cleaningFee,
       checkIn,
       checkOut
     );
