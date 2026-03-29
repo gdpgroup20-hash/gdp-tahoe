@@ -34,3 +34,4 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: String(error), bookings: [] }, { status: 500 });
   }
 }
+// Sun Mar 29 01:55:10 PDT 2026
