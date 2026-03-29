@@ -1,8 +1,8 @@
 import { neon } from "@neondatabase/serverless";
 
 export function getDb() {
-  // Use DATABASE_URL first (the Neon pooler URL with all our data)
-  const url = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL_NON_POOLING || process.env.STORAGE_URL;
+  // Use NON_POOLING URL first to avoid pgbouncer transaction mode issues
+  const url = process.env.POSTGRES_URL_NON_POOLING || process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.POSTGRES_PRISMA_URL || process.env.STORAGE_URL;
   if (!url) throw new Error("DATABASE_URL is not set");
   return neon(url);
 }
