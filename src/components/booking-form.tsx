@@ -2,6 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { differenceInCalendarDays, isBefore, startOfDay } from "date-fns";
+import { loadStripe } from "@stripe/stripe-js";
+import {
+  Elements,
+  CardElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
 import { DateRangePicker } from "@/components/date-range-picker";
 
 import type { Property } from "@/lib/properties";
@@ -12,6 +19,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+
+const stripePromise = loadStripe(
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
+);
 
 interface BookingFormProps {
   property: Property;
@@ -25,6 +36,8 @@ interface PriceSummary {
   total: number;
   hasWeeklyDiscount: boolean;
 }
+
+type Step = "details" | "payment" | "success";
 
 function calculatePrice(
   property: Property,
@@ -52,6 +65,193 @@ function calculatePrice(
   };
 }
 
+const cardStyle = {
+  style: {
+    base: {
+      fontSize: "16px",
+      color: "#0f1d3d",
+      fontFamily: "inherit",
+      "::placeholder": { color: "#9ca3af" },
+    },
+    invalid: { color: "#ef4444" },
+  },
+};
+
+/* ─── Payment step (must be inside <Elements>) ─── */
+
+function PaymentStep({
+  property,
+  price,
+  dateRange,
+  clientSecret,
+  bookingId,
+  onSuccess,
+  onBack,
+}: {
+  property: Property;
+  price: PriceSummary;
+  dateRange: { from: Date; to: Date };
+  clientSecret: string;
+  bookingId: string;
+  onSuccess: (bookingId: string) => void;
+  onBack: () => void;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handlePay(e: React.FormEvent) {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+
+    const cardElement = elements.getElement(CardElement);
+    if (!cardElement) return;
+
+    setProcessing(true);
+    setError(null);
+
+    try {
+      const { error: stripeError, paymentIntent } =
+        await stripe.confirmCardPayment(clientSecret, {
+          payment_method: { card: cardElement },
+        });
+
+      if (stripeError) {
+        setError(
+          stripeError.type === "card_error"
+            ? "Your card was declined. Please try a different card."
+            : "Something went wrong. Please try again."
+        );
+      } else if (paymentIntent?.status === "succeeded") {
+        onSuccess(bookingId);
+      }
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handlePay}>
+      <div className="mx-auto max-w-lg space-y-6">
+        {/* Summary */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg text-[#0f1d3d]">
+              Booking Summary
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Property</span>
+              <span className="font-medium text-[#0f1d3d]">
+                {property.name}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Check-in</span>
+              <span>
+                {dateRange.from.toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Check-out</span>
+              <span>
+                {dateRange.to.toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </span>
+            </div>
+            <Separator />
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">
+                ${property.nightlyRate.toLocaleString()} &times; {price.nights}{" "}
+                night{price.nights !== 1 && "s"}
+              </span>
+              <span>${price.subtotal.toLocaleString()}</span>
+            </div>
+            {price.hasWeeklyDiscount && (
+              <div className="flex justify-between text-sm text-green-600">
+                <span>Weekly discount ({property.weeklyDiscount}%)</span>
+                <span>&minus;${price.discount.toLocaleString()}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Cleaning fee</span>
+              <span>${price.cleaningFee.toLocaleString()}</span>
+            </div>
+            <Separator />
+            <div className="flex justify-between text-base font-semibold text-[#0f1d3d]">
+              <span>Total</span>
+              <span>${price.total.toLocaleString()}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Card input */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg text-[#0f1d3d]">
+              Payment Details
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-md border border-input bg-background p-3">
+              <CardElement options={cardStyle} />
+            </div>
+
+            {error && (
+              <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-4 text-sm text-destructive">
+                {error}
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full bg-[#0f1d3d] text-base font-semibold hover:bg-[#0f1d3d]/90"
+              disabled={!stripe || processing}
+            >
+              {processing ? (
+                <span className="flex items-center gap-2">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                  Processing...
+                </span>
+              ) : (
+                `Pay $${price.total.toLocaleString()} now`
+              )}
+            </Button>
+
+            <p className="text-center text-xs text-muted-foreground">
+              You will be charged immediately. Cancellation policy applies.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Button
+          type="button"
+          variant="ghost"
+          className="w-full"
+          onClick={onBack}
+          disabled={processing}
+        >
+          &larr; Back to edit details
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+/* ─── Main BookingForm ─── */
+
 export function BookingForm({ property }: BookingFormProps) {
   const [dateRange, setDateRange] = useState<
     { from: Date | undefined; to: Date | undefined } | undefined
@@ -65,8 +265,10 @@ export function BookingForm({ property }: BookingFormProps) {
   const [phone, setPhone] = useState("");
   const [specialRequests, setSpecialRequests] = useState("");
 
+  const [step, setStep] = useState<Step>("details");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [bookingId, setBookingId] = useState<string | null>(null);
 
   // Fetch unavailable dates
@@ -112,7 +314,7 @@ export function BookingForm({ property }: BookingFormProps) {
   const isFormValid =
     price !== null && name.trim() !== "" && email.trim() !== "";
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleContinueToPayment(e: React.FormEvent) {
     e.preventDefault();
     if (!isFormValid || !dateRange?.from || !dateRange?.to) return;
 
@@ -142,7 +344,9 @@ export function BookingForm({ property }: BookingFormProps) {
       }
 
       const data = await res.json();
+      setClientSecret(data.clientSecret);
       setBookingId(data.bookingId ?? data.id ?? "confirmed");
+      setStep("payment");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Something went wrong."
@@ -153,7 +357,7 @@ export function BookingForm({ property }: BookingFormProps) {
   }
 
   // Success state
-  if (bookingId) {
+  if (step === "success" && bookingId) {
     return (
       <div className="flex items-center justify-center py-20">
         <Card className="w-full max-w-md text-center">
@@ -174,31 +378,75 @@ export function BookingForm({ property }: BookingFormProps) {
               </svg>
             </div>
             <CardTitle className="text-2xl text-[#0f1d3d]">
-              Booking Confirmed
+              Booking Confirmed!
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <p className="text-muted-foreground">
-              Your reservation at <strong>{property.name}</strong> has been
-              submitted successfully.
-            </p>
             <p className="text-sm text-muted-foreground">
               Booking ID:{" "}
               <span className="font-mono font-semibold text-[#0f1d3d]">
                 {bookingId}
               </span>
             </p>
+            <Separator />
+            <div className="space-y-1 text-sm">
+              <p className="font-medium text-[#0f1d3d]">{property.name}</p>
+              {dateRange?.from && dateRange?.to && (
+                <p className="text-muted-foreground">
+                  {dateRange.from.toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}{" "}
+                  &mdash;{" "}
+                  {dateRange.to.toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </p>
+              )}
+            </div>
+            <Separator />
             <p className="text-sm text-muted-foreground">
-              A confirmation email will be sent to <strong>{email}</strong>.
+              You will receive a confirmation email at{" "}
+              <strong>{email}</strong>.
             </p>
+            <Button
+              className="mt-4 w-full bg-[#0f1d3d] hover:bg-[#0f1d3d]/90"
+              onClick={() => (window.location.href = "/")}
+            >
+              Return to Home
+            </Button>
           </CardContent>
         </Card>
       </div>
     );
   }
 
+  // Payment step
+  if (step === "payment" && clientSecret && bookingId && dateRange?.from && dateRange?.to && price) {
+    return (
+      <Elements stripe={stripePromise} options={{ clientSecret }}>
+        <PaymentStep
+          property={property}
+          price={price}
+          dateRange={{ from: dateRange.from, to: dateRange.to }}
+          clientSecret={clientSecret}
+          bookingId={bookingId}
+          onSuccess={(id) => {
+            setBookingId(id);
+            setStep("success");
+          }}
+          onBack={() => setStep("details")}
+        />
+      </Elements>
+    );
+  }
+
+  // Details step (original form)
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleContinueToPayment}>
       <div className="grid gap-10 lg:grid-cols-[1fr_400px]">
         {/* Left Column — Calendar & Guests */}
         <div className="space-y-8">
@@ -413,14 +661,9 @@ export function BookingForm({ property }: BookingFormProps) {
                 Processing...
               </span>
             ) : (
-              "Confirm & Pay"
+              "Continue to Payment"
             )}
           </Button>
-
-          <p className="text-center text-xs text-muted-foreground">
-            You won&apos;t be charged yet. We&apos;ll confirm availability
-            and send payment instructions.
-          </p>
         </div>
       </div>
     </form>
