@@ -378,7 +378,7 @@ function ReservationsTab({
   loading: boolean;
   authToken: string;
 }) {
-  const [subTab, setSubTab] = useState<"upcoming" | "past">("upcoming");
+  const [subTab, setSubTab] = useState<"upcoming" | "past" | "cancelled">("upcoming");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [sourceFilter, setSourceFilter] = useState<"all" | "direct" | "airbnb" | "vrbo">("all");
   const [platformReservations, setPlatformReservations] = useState<PlatformReservation[]>([]);
@@ -416,12 +416,14 @@ function ReservationsTab({
     ? allReservations
     : allReservations.filter((r) => r.source === sourceFilter);
 
-  const upcoming = filtered.filter((r) => r.checkIn >= today);
-  const past = filtered.filter((r) => r.checkIn < today);
-  const displayed = subTab === "upcoming" ? upcoming : past;
+  const cancelled = filtered.filter((r) => r.status === "canceled" || r.status === "cancelled");
+  const active = filtered.filter((r) => r.status !== "canceled" && r.status !== "cancelled");
+  const upcoming = active.filter((r) => r.checkIn >= today);
+  const past = active.filter((r) => r.checkIn < today);
+  const displayed = subTab === "upcoming" ? upcoming : subTab === "past" ? past : cancelled;
 
-  const directBookings = bookings.length;
-  const platformCount = platformReservations.filter((p) => p.source === "airbnb" || p.source === "vrbo").length;
+  const directBookings = bookings.filter((b) => b.status !== "cancelled").length;
+  const platformCount = platformReservations.filter((p) => p.source === "airbnb" || p.source === "vrbo").filter((p) => p.status !== "canceled" && p.status !== "cancelled").length;
   const totalRevenue = bookings
     .filter((b) => b.status !== "cancelled")
     .reduce((sum, b) => sum + b.totalPrice, 0);
@@ -499,6 +501,17 @@ function ReservationsTab({
               )}
             >
               Past ({past.length})
+            </button>
+            <button
+              onClick={() => setSubTab("cancelled")}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                subTab === "cancelled"
+                  ? "bg-white text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Cancelled ({cancelled.length})
             </button>
           </div>
           <select
