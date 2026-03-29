@@ -3,57 +3,9 @@ import Stripe from "stripe";
 import { updateBookingStatus } from "@/lib/bookings";
 import { getTemplate } from "@/lib/email-templates";
 import { getPricingForProperty } from "@/lib/pricing";
+import { Resend } from "resend";
 
 export const dynamic = "force-dynamic";
-
-async function getGmailAccessToken(): Promise<string> {
-  const res = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: process.env.GMAIL_CLIENT_ID!,
-      client_secret: process.env.GMAIL_CLIENT_SECRET!,
-      refresh_token: process.env.GMAIL_REFRESH_TOKEN!,
-      grant_type: "refresh_token",
-    }),
-  });
-  const data = await res.json();
-  return data.access_token;
-}
-
-async function sendGmail(to: string, subject: string, html: string) {
-  const accessToken = await getGmailAccessToken();
-
-  // Build RFC 2822 email
-  const emailLines = [
-    `From: GDP Tahoe <gdpgroup20@gmail.com>`,
-    `To: ${to}`,
-    `Subject: ${subject}`,
-    `MIME-Version: 1.0`,
-    `Content-Type: text/html; charset=utf-8`,
-    ``,
-    html,
-  ];
-  const raw = Buffer.from(emailLines.join("\r\n"))
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-
-  const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ raw }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(`Gmail API error: ${JSON.stringify(err)}`);
-  }
-}
 
 function fillTemplate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? `{{${key}}}`);
@@ -61,19 +13,23 @@ function fillTemplate(template: string, vars: Record<string, string>): string {
 
 function formatDate(dateStr: string): string {
   try {
-    return new Date(dateStr).toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+    return new Date(dateStr).toLocaleDateString("en-US", {
+      weekday: "long", year: "numeric", month: "long", day: "numeric",
+    });
   } catch { return dateStr; }
 }
 
 function textToHtml(text: string): string {
-  return `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#0f1d3d">
+  return `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#0f1d3d">
     <div style="border-bottom:2px solid #0f1d3d;padding-bottom:16px;margin-bottom:24px">
-      <strong style="font-size:20px">GDP Tahoe</strong>
+      <strong style="font-size:20px;letter-spacing:0.1em;text-transform:uppercase">GDP Tahoe</strong>
     </div>
-    <div style="line-height:1.8">
-      ${text.split("\n").map(line => line.trim() ? `<p style="margin:8px 0">${line}</p>` : "<br/>").join("")}
+    <div style="line-height:1.8;font-size:15px">
+      ${text.split("\n").map(line =>
+        line.trim() ? `<p style="margin:8px 0">${line}</p>` : "<br/>"
+      ).join("")}
     </div>
-    <div style="border-top:1px solid #ddd;margin-top:32px;padding-top:16px;font-size:12px;color:#666">
+    <div style="border-top:1px solid #ddd;margin-top:32px;padding-top:16px;font-size:12px;color:#888">
       GDP Tahoe · staygdptahoe.com · 603-359-9227
     </div>
   </div>`;
@@ -81,9 +37,10 @@ function textToHtml(text: string): string {
 
 export async function POST(request: Request) {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    // @ts-expect-error — Stripe SDK types may not match the latest API version string
+    // @ts-expect-error — Stripe SDK types may not match latest API version
     apiVersion: "2023-10-16",
   });
+
   const body = await request.text();
   const signature = request.headers.get("stripe-signature");
 
@@ -105,47 +62,62 @@ export async function POST(request: Request) {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
         const booking = await updateBookingStatus(paymentIntent.id, "confirmed");
 
-        if (booking) {
-          // Get pricing for rental agreement URL
+        if (booking && process.env.RESEND_API_KEY) {
+          const resend = new Resend(process.env.RESEND_API_KEY);
+
           let rentalAgreementUrl = "";
           try {
             const pricing = await getPricingForProperty(booking.propertySlug);
             rentalAgreementUrl = pricing?.rentalAgreementUrl ?? "";
           } catch {}
 
+          const nights = Math.ceil(
+            (new Date(booking.checkOut).getTime() - new Date(booking.checkIn).getTime()) / 86400000
+          );
+
           const vars: Record<string, string> = {
             guest_name: booking.guestName,
             property_name: booking.propertyName,
             check_in: formatDate(booking.checkIn),
             check_out: formatDate(booking.checkOut),
-            nights: String(Math.ceil((new Date(booking.checkOut).getTime() - new Date(booking.checkIn).getTime()) / 86400000)),
+            nights: String(nights),
             total: booking.totalPrice.toLocaleString(),
             booking_id: booking.id,
             rental_agreement_url: rentalAgreementUrl || "https://www.staygdptahoe.com",
             recommendations_url: "https://www.staygdptahoe.com/recommendations",
           };
 
-          // 1. Guest confirmation email (per-property template)
+          const fromAddr = "GDP Tahoe <bookings@staygdptahoe.com>";
+
+          // 1. Guest confirmation email
           try {
-            const tpl = await getTemplate(`tpl-booking-confirmed-${booking.propertySlug}`);
-            if (tpl && tpl.enabled && booking.guestEmail) {
-              const subject = fillTemplate(tpl.subject, vars);
-              const bodyText = fillTemplate(tpl.body, vars);
-              await sendGmail(booking.guestEmail, subject, textToHtml(bodyText));
+            const tplId = `tpl-booking-confirmed-${booking.propertySlug}`;
+            const tpl = await getTemplate(tplId);
+            if (tpl?.enabled && booking.guestEmail) {
+              await resend.emails.send({
+                from: fromAddr,
+                to: booking.guestEmail,
+                subject: fillTemplate(tpl.subject, vars),
+                html: textToHtml(fillTemplate(tpl.body, vars)),
+              });
               console.log(`[Email] Confirmation sent to ${booking.guestEmail}`);
             }
-          } catch (e) { console.error("Guest confirmation email failed:", e); }
+          } catch (e) { console.error("[Email] Guest confirmation failed:", e); }
 
-          // 2. Owner notification email (per-property template)
+          // 2. Owner notification
           try {
-            const tpl = await getTemplate(`tpl-owner-notification-${booking.propertySlug}`);
-            if (tpl && tpl.enabled) {
-              const subject = fillTemplate(tpl.subject, vars);
-              const bodyText = fillTemplate(tpl.body, vars);
-              await sendGmail("gdpgroup20@gmail.com", subject, textToHtml(bodyText));
+            const tplId = `tpl-owner-notification-${booking.propertySlug}`;
+            const tpl = await getTemplate(tplId);
+            if (tpl?.enabled) {
+              await resend.emails.send({
+                from: fromAddr,
+                to: "gdpgroup20@gmail.com",
+                subject: fillTemplate(tpl.subject, vars),
+                html: textToHtml(fillTemplate(tpl.body, vars)),
+              });
               console.log("[Email] Owner notification sent");
             }
-          } catch (e) { console.error("Owner notification email failed:", e); }
+          } catch (e) { console.error("[Email] Owner notification failed:", e); }
         }
         break;
       }
