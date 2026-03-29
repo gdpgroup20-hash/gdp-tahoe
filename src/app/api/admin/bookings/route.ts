@@ -17,24 +17,26 @@ export async function GET(request: Request) {
     const { getDb } = await import("@/lib/db");
     const sql = getDb();
     
-    // First ensure all columns exist
-    const alters = [
-      `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS property_slug TEXT NOT NULL DEFAULT ''`,
-      `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS property_name TEXT NOT NULL DEFAULT ''`,
-      `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS guest_email TEXT NOT NULL DEFAULT ''`,
-      `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS guest_phone TEXT NOT NULL DEFAULT ''`,
-      `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS check_out TEXT NOT NULL DEFAULT ''`,
-      `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS guests INTEGER NOT NULL DEFAULT 1`,
-      `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS special_requests TEXT NOT NULL DEFAULT ''`,
-      `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS total_price NUMERIC NOT NULL DEFAULT 0`,
-      `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS stripe_payment_intent_id TEXT NOT NULL DEFAULT ''`,
-      `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS created_at TEXT NOT NULL DEFAULT ''`,
-    ];
-    for (const alter of alters) {
-      try { await sql.unsafe(alter); } catch {}
-    }
-
-    const rows = await sql`SELECT * FROM bookings ORDER BY created_at DESC`;
+    // Select only columns we know exist (from debug - some columns were missing)
+    const rows = await sql`
+      SELECT 
+        id,
+        COALESCE(property_slug, '') as property_slug,
+        COALESCE(property_name, '') as property_name,
+        COALESCE(guest_name, '') as guest_name,
+        COALESCE(guest_email, '') as guest_email,
+        COALESCE(guest_phone, '') as guest_phone,
+        COALESCE(check_in, '') as check_in,
+        COALESCE(check_out, '') as check_out,
+        COALESCE(guests, 1) as guests,
+        COALESCE(special_requests, '') as special_requests,
+        COALESCE(total_price, 0) as total_price,
+        COALESCE(stripe_payment_intent_id, '') as stripe_payment_intent_id,
+        COALESCE(status, 'pending') as status,
+        COALESCE(created_at, '') as created_at
+      FROM bookings 
+      ORDER BY created_at DESC
+    `;
     
     const bookings = rows.map((row: Record<string, unknown>) => ({
       id: String(row.id || ""),
@@ -56,6 +58,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ bookings });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
+    console.error("Bookings GET error:", msg);
     return NextResponse.json({ error: msg, bookings: [] }, { status: 500 });
   }
 }
