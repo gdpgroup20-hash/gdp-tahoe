@@ -430,9 +430,25 @@ function ReservationsTab({
   const isCancelled = (r: UnifiedReservation) =>
     r.status === "canceled" || r.status === "cancelled" ||
     r.status.toLowerCase().includes("cancel");
+
+  // Normalize check-in date to ISO YYYY-MM-DD for reliable comparison
+  const toISODate = (dateStr: string): string => {
+    if (!dateStr) return "";
+    // Already ISO format
+    if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) return dateStr.substring(0, 10);
+    // M/D/YYYY or MM/DD/YYYY
+    const parts = dateStr.split("/");
+    if (parts.length === 3) {
+      const [m, d, y] = parts;
+      return `${y.padStart(4,"0")}-${m.padStart(2,"0")}-${d.padStart(2,"0")}`;
+    }
+    // Fallback: try Date parse
+    try { return new Date(dateStr).toISOString().substring(0, 10); } catch { return dateStr; }
+  };
+
   const cancelled = filtered.filter(isCancelled);
-  const upcoming = filtered.filter((r) => !isCancelled(r) && r.checkIn >= today);
-  const past = filtered.filter((r) => !isCancelled(r) && r.checkIn < today);
+  const upcoming = filtered.filter((r) => !isCancelled(r) && toISODate(r.checkIn) >= today);
+  const past = filtered.filter((r) => !isCancelled(r) && toISODate(r.checkIn) < today);
   const displayed = subTab === "upcoming" ? upcoming : subTab === "past" ? past : cancelled;
 
   const directBookings = bookings.filter((b) => !b.status.toLowerCase().includes("cancel")).length;
