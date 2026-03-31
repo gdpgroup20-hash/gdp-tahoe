@@ -392,6 +392,8 @@ function ReservationsTab({
   const [subTab, setSubTab] = useState<"upcoming" | "past" | "cancelled">("upcoming");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [sourceFilter, setSourceFilter] = useState<"all" | "direct" | "airbnb" | "vrbo">("all");
+  const [deleteTarget, setDeleteTarget] = useState<UnifiedReservation | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [platformReservations, setPlatformReservations] = useState<PlatformReservation[]>([]);
   const [platformLoading, setPlatformLoading] = useState(true);
 
@@ -459,8 +461,62 @@ function ReservationsTab({
 
   const isLoading = loading || platformLoading;
 
+  const handleDelete = async () => {
+    if (!deleteTarget || deleteTarget.source !== "direct") return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/bookings/${deleteTarget.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (res.ok) {
+        window.location.reload();
+      } else {
+        alert("Failed to delete reservation. Please try again.");
+      }
+    } catch {
+      alert("Error deleting reservation.");
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Delete Reservation?</h2>
+            <p className="text-sm text-muted-foreground mb-4">This action cannot be undone.</p>
+            <div className="rounded-lg border bg-gray-50 p-4 text-sm space-y-2 mb-6">
+              <div className="flex justify-between"><span className="text-muted-foreground">Guest</span><span className="font-medium">{deleteTarget.guestName || "Unknown"}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Property</span><span className="font-medium">{deleteTarget.property}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Dates</span><span className="font-medium">{formatDate(deleteTarget.checkIn)} – {formatDate(deleteTarget.checkOut)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Amount</span><span className="font-medium">{formatCurrency(deleteTarget.totalPrice)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Booking ID</span><span className="font-mono text-xs">{deleteTarget.id}</span></div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="flex-1 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleting ? "Deleting..." : "Delete Permanently"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Card>
@@ -690,6 +746,16 @@ function ReservationsTab({
                             <p className="text-xs">{formatDateTime(res.createdAt)}</p>
                           </div>
                         </div>
+                        {res.source === "direct" && (
+                          <div className="mt-4 pt-4 border-t flex justify-end">
+                            <button
+                              onClick={() => setDeleteTarget(res)}
+                              className="rounded-lg border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+                            >
+                              🗑️ Delete Reservation
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
