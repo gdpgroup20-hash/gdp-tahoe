@@ -461,8 +461,27 @@ function ReservationsTab({
 
   const isLoading = loading || platformLoading;
 
+  const showNonDirectDeleteMessage = () => {
+    alert(
+      "Only direct bookings can be deleted here. Airbnb and VRBO reservations must be managed on their respective platforms."
+    );
+  };
+
+  const requestDelete = (reservation: UnifiedReservation) => {
+    if (reservation.source !== "direct") {
+      showNonDirectDeleteMessage();
+      return;
+    }
+    setDeleteTarget(reservation);
+  };
+
   const handleDelete = async () => {
-    if (!deleteTarget || deleteTarget.source !== "direct") return;
+    if (!deleteTarget) return;
+    if (deleteTarget.source !== "direct") {
+      showNonDirectDeleteMessage();
+      setDeleteTarget(null);
+      return;
+    }
     setDeleting(true);
     try {
       const res = await fetch(`/api/bookings/${deleteTarget.id}`, {
@@ -749,7 +768,7 @@ function ReservationsTab({
                         {res.source === "direct" && (
                           <div className="mt-4 pt-4 border-t flex justify-end">
                             <button
-                              onClick={() => setDeleteTarget(res)}
+                              onClick={() => requestDelete(res)}
                               className="rounded-lg border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
                             >
                               🗑️ Delete Reservation
