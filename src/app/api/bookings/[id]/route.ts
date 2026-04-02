@@ -19,8 +19,9 @@ export async function GET(
   const { id } = await params;
   const db = getDb();
   // Return raw IDs for debugging — list all bookings for Andrew van Bark
-  const rows = await db`SELECT id, guest_name, check_in FROM bookings WHERE guest_name ILIKE '%van bark%' OR id ILIKE ${'%' + id.substring(0,8) + '%'} ORDER BY created_at DESC LIMIT 10`;
-  return NextResponse.json({ query_id: id, matches: rows });
+  const bookingRows = await db`SELECT id, guest_name, check_in, 'bookings' as tbl FROM bookings ORDER BY created_at DESC LIMIT 20`;
+  const platformRows = await db`SELECT id, guest_name, check_in, 'platform_reservations' as tbl FROM platform_reservations ORDER BY created_at DESC LIMIT 20`;
+  return NextResponse.json({ query_id: id, bookings: bookingRows, platform_reservations: platformRows });
 }
 
 export async function DELETE(

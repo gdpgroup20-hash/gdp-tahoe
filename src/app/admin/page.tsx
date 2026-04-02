@@ -545,7 +545,8 @@ function ReservationsTab({
           onClick={async () => {
             const res = await fetch("/api/bookings/GDP-DEBUG", { headers: { Authorization: `Bearer ${authToken}` } });
             const data = await res.json();
-            alert(JSON.stringify(data.matches?.map((r: {id: string; guest_name: string; check_in: string}) => `${r.id} | ${r.guest_name} | ${r.check_in}`), null, 2));
+            const fmt = (rows: {id: string; guest_name: string; check_in: string}[]) => rows?.map(r => `${r.id} | ${r.guest_name} | ${r.check_in}`).join('\n') ?? 'none';
+            alert(`BOOKINGS:\n${fmt(data.bookings)}\n\nPLATFORM:\n${fmt(data.platform_reservations)}`);
           }}
         >
           Dump IDs
