@@ -490,7 +490,8 @@ function ReservationsTab({
         method: "DELETE",
         headers: { Authorization: `Bearer ${authToken}` },
       });
-      if (res.ok) {
+      if (res.ok || res.status === 404) {
+        // 404 = already gone from DB, remove from UI either way
         onDeleted(deleteTarget.id);
       } else {
         const body = await res.json().catch(() => ({}));
