@@ -384,10 +384,12 @@ function ReservationsTab({
   bookings,
   loading,
   authToken,
+  onDeleted,
 }: {
   bookings: Booking[];
   loading: boolean;
   authToken: string;
+  onDeleted: (id: string) => void;
 }) {
   const [subTab, setSubTab] = useState<"upcoming" | "past" | "cancelled">("upcoming");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -489,7 +491,7 @@ function ReservationsTab({
         headers: { Authorization: `Bearer ${authToken}` },
       });
       if (res.ok) {
-        setBookings((prev) => prev.filter((b) => b.id !== deleteTarget.id));
+        onDeleted(deleteTarget.id);
       } else {
         const body = await res.json().catch(() => ({}));
         alert(`Failed to delete reservation (${res.status}): ${body.error ?? "Unknown error"}`);
@@ -4421,7 +4423,7 @@ export default function AdminPage() {
 
       <main className="mx-auto max-w-7xl px-4 py-6 pb-24 md:pb-6 sm:px-6">
         {activeTab === "reservations" && (
-          <ReservationsTab bookings={bookings} loading={loading} authToken={authToken} />
+          <ReservationsTab bookings={bookings} loading={loading} authToken={authToken} onDeleted={(id) => setBookings((prev) => prev.filter((b) => b.id !== id))} />
         )}
         {activeTab === "calendar" && (
           <CalendarTab bookings={bookings} authToken={authToken} />
