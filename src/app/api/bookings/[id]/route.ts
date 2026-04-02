@@ -42,13 +42,16 @@ export async function DELETE(
     const db = getDb();
     // Try exact match first
     let result = await db`DELETE FROM bookings WHERE id = ${id} RETURNING id`;
-    // Fallback: normalize 0↔O confusion (old IDs used toString(36) which mixes digits and letters;
-    // monospace font wasn't used so 0 and O look identical to users)
+    // Fallback: strip ALL non-alphanumeric chars and compare alphanumeric-only
+    // This handles font ambiguity (0/O, I/1, etc.) and any dash variations
     if (result.length === 0) {
-      const normalize = (s: string) => s.toUpperCase().replace(/O/g, '0');
-      const normId = normalize(id);
-      // Find candidate rows whose normalized ID matches
-      const candidates = await db`SELECT id FROM bookings WHERE REPLACE(UPPER(id), 'O', '0') = ${normId}`;
+      const alphaOnly = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      const normId = alphaOnly(id);
+      const candidates = await db`
+        SELECT id FROM bookings
+        WHERE REGEXP_REPLACE(UPPER(id), '[^A-Z0-9]', '', 'g') = ${normId}
+      `;
+      console.log(`Delete fallback: normId=${normId}, candidates=${JSON.stringify(candidates)}`);
       if (candidates.length === 1) {
         result = await db`DELETE FROM bookings WHERE id = ${candidates[0].id} RETURNING id`;
       }
