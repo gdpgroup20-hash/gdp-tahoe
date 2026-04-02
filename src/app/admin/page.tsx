@@ -537,26 +537,6 @@ function ReservationsTab({
         </div>
       )}
 
-      {/* TEMP DEBUG: Dump raw booking IDs */}
-      <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-4 text-sm">
-        <p className="font-semibold text-yellow-800 mb-2">🔧 Debug: Raw Booking IDs from DB</p>
-        <button
-          className="rounded bg-yellow-400 px-3 py-1 text-xs font-medium hover:bg-yellow-500"
-          onClick={async () => {
-            try {
-              const res = await fetch("/api/bookings/GDP-DEBUG", { headers: { Authorization: `Bearer ${authToken}` } });
-              const text = await res.text();
-              let data: Record<string, unknown> = {};
-              try { data = JSON.parse(text); } catch { alert("Raw: " + text.substring(0, 500)); return; }
-              const fmt = (rows: {id: string; guest_name: string; check_in: string}[]) => Array.isArray(rows) ? rows.map(r => `${r.id} | ${r.guest_name} | ${r.check_in}`).join('\n') : JSON.stringify(rows);
-              alert(`STATUS: ${res.status}\nBOOKINGS:\n${fmt(data.bookings as {id: string; guest_name: string; check_in: string}[])}\n\nPLATFORM:\n${fmt(data.platform_reservations as {id: string; guest_name: string; check_in: string}[])}`);
-            } catch(e) { alert("Error: " + String(e)); }
-          }}
-        >
-          Dump IDs
-        </button>
-      </div>
-
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Card>
