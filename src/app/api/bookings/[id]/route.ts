@@ -24,6 +24,10 @@ export async function DELETE(
     return NextResponse.json({ error: "Missing booking ID" }, { status: 400 });
   }
 
+  // Debug: log which DB URL is being used
+  const dbUrl = process.env.DATABASE_URL_UNPOOLED || process.env.POSTGRES_URL_NON_POOLING || process.env.DATABASE_URL || "none";
+  console.log(`Delete booking ${id}: using DB ${dbUrl.substring(0, 40)}`);
+
   try {
     const db = getDb();
     // Try exact match first

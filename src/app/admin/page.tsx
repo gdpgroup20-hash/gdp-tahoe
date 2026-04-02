@@ -489,7 +489,7 @@ function ReservationsTab({
         headers: { Authorization: `Bearer ${authToken}` },
       });
       if (res.ok) {
-        window.location.reload();
+        setBookings((prev) => prev.filter((b) => b.id !== deleteTarget.id));
       } else {
         const body = await res.json().catch(() => ({}));
         alert(`Failed to delete reservation (${res.status}): ${body.error ?? "Unknown error"}`);
