@@ -3,7 +3,7 @@ import { getDb } from "./db";
 export interface EmailTemplate {
   id: string;
   name: string;
-  trigger: "booking_confirmed" | "owner_notification" | "pre_checkin" | "post_checkout";
+  trigger: "booking" | "on_booking" | "booking_confirmed" | "owner_notification" | "pre_checkin" | "post_checkout";
   subject: string;
   body: string;
   daysOffset: number;
@@ -42,6 +42,23 @@ export async function getTemplatesForProperty(propertySlug: string): Promise<Ema
   const sql = getDb();
   const rows = await sql`SELECT * FROM email_templates WHERE property_slug = ${propertySlug} ORDER BY id`;
   return rows.map(mapRow);
+}
+
+export async function findTemplateIdForProperty(
+  propertySlug: string,
+  triggers: EmailTemplate["trigger"][],
+  fallbackIds: string[] = []
+): Promise<string | null> {
+  const templates = await getTemplatesForProperty(propertySlug);
+  const template = templates.find((tpl) => triggers.includes(tpl.trigger));
+  if (template) return template.id;
+
+  for (const id of fallbackIds) {
+    const fallback = await getTemplate(id);
+    if (fallback?.propertySlug === propertySlug) return fallback.id;
+  }
+
+  return null;
 }
 
 export async function updateTemplate(
