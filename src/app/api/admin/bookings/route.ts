@@ -30,6 +30,7 @@ export async function GET(request: Request) {
     const countRows = await sql`SELECT count(*)::int AS cnt FROM bookings`;
     console.log(`Admin bookings: url=${url.substring(0,40)}, count=${countRows[0]?.cnt}`);
     const rows = await sql`SELECT * FROM bookings ORDER BY created_at DESC`;
+    console.log(`Raw rows: ${JSON.stringify(rows.slice(0,2))}`);
     const bookings = rows.map((row: Record<string, unknown>) => ({
       id: String(row.id || ""),
       propertySlug: String(row.property_slug || ""),
@@ -46,7 +47,7 @@ export async function GET(request: Request) {
       status: String(row.status || "pending"),
       createdAt: String(row.created_at || ""),
     }));
-    return NextResponse.json({ bookings, _urlPrefix: url.substring(0, 40), _dbCount: countRows[0]?.cnt });
+    return NextResponse.json({ bookings, _rawRows: rows, _urlPrefix: url.substring(0, 40), _dbCount: countRows[0]?.cnt });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     return NextResponse.json({ error: msg, bookings: [] }, { status: 500 });
