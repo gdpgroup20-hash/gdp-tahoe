@@ -12,6 +12,9 @@ export const metadata: Metadata = {
   title: "GDP Tahoe | Luxury Lake Tahoe Vacation Rentals — Direct Booking",
   description:
     "Book direct and save. GDP Tahoe offers two private luxury vacation rentals on the North Shore of Lake Tahoe — Elevation Estate (7BR lakefront villa with private pier) and Turquoise Tavern (3BR, steps from the beach). No service fees.",
+  icons: {
+    icon: "/logo.png",
+  },
   keywords: [
     "luxury vacation rental Lake Tahoe",
     "North Lake Tahoe vacation rental",
@@ -31,6 +34,12 @@ export const metadata: Metadata = {
     siteName: "GDP Tahoe",
     images: [
       {
+        url: "/logo.png",
+        width: 160,
+        height: 60,
+        alt: "GDP Tahoe logo",
+      },
+      {
         url: "https://www.staygdptahoe.com/images/elevation/e6ecf408-354c-4c00-9227-7d55280bd66b.jpeg",
         width: 1200,
         height: 800,
@@ -44,7 +53,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "GDP Tahoe | Luxury Lake Tahoe Vacation Rentals",
     description: "Two private luxury properties on the North Shore. Book direct and save.",
-    images: ["https://www.staygdptahoe.com/images/elevation/e6ecf408-354c-4c00-9227-7d55280bd66b.jpeg"],
+    images: ["/logo.png", "https://www.staygdptahoe.com/images/elevation/e6ecf408-354c-4c00-9227-7d55280bd66b.jpeg"],
   },
   alternates: {
     canonical: "https://www.staygdptahoe.com",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { Menu, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -102,14 +103,14 @@ export function Navbar() {
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 lg:px-8">
         {/* Logo */}
         <Link href="/" className="relative z-10">
-          <span
-            className={cn(
-              "text-lg font-semibold tracking-widest uppercase transition-colors duration-300",
-              scrolled ? "text-[#0f1d3d]" : "text-white"
-            )}
-          >
-            GDP Tahoe
-          </span>
+          <Image
+            src="/logo.png"
+            alt="GDP Tahoe"
+            width={160}
+            height={60}
+            className="h-auto w-[160px]"
+            priority
+          />
         </Link>
 
         {/* Desktop Navigation */}
@@ -157,8 +158,14 @@ export function Navbar() {
             </SheetTrigger>
             <SheetContent side="right" className="w-80">
               <SheetHeader>
-                <SheetTitle className="text-lg font-semibold tracking-widest uppercase text-[#0f1d3d]">
-                  GDP Tahoe
+                <SheetTitle>
+                  <Image
+                    src="/logo.png"
+                    alt="GDP Tahoe"
+                    width={160}
+                    height={60}
+                    className="h-auto w-[160px]"
+                  />
                 </SheetTitle>
               </SheetHeader>
               <div className="flex flex-col gap-1 px-4 pt-4">

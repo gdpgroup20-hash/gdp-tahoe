@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Instagram, Mail, MapPin } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -23,9 +24,13 @@ export function Footer() {
         <div className="grid gap-12 md:grid-cols-3">
           {/* Brand */}
           <div className="space-y-4">
-            <span className="text-lg font-semibold tracking-widest uppercase text-white">
-              GDP Tahoe
-            </span>
+            <Image
+              src="/logo.png"
+              alt="GDP Tahoe"
+              width={120}
+              height={45}
+              className="h-auto w-[120px]"
+            />
             <div className="flex items-center gap-2 text-sm text-white/50">
               <MapPin className="size-3.5" />
               <span>Lake Tahoe, California</span>
@@ -76,7 +81,7 @@ export function Footer() {
 
         <div className="flex items-center justify-between">
           <p className="text-xs text-white/30">
-            &copy; {new Date().getFullYear()} GDP Tahoe. All rights reserved.
+            &copy; {new Date().getFullYear()} All rights reserved.
           </p>
           <Link
             href="/admin"

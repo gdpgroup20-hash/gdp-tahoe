@@ -135,9 +135,16 @@ export default function Home() {
         <div className="absolute inset-0 bg-gradient-to-b from-[#0f1d3d]/70 via-[#0f1d3d]/50 to-[#0f1d3d]/80" />
 
         <div className="relative z-10 max-w-4xl mx-auto px-6 text-center">
-          <p className="text-white/70 uppercase tracking-[0.35em] text-sm mb-6">
-            GDP Tahoe
-          </p>
+          <div className="mb-6 flex justify-center">
+            <Image
+              src="/logo.png"
+              alt="GDP Tahoe"
+              width={180}
+              height={68}
+              className="h-auto w-[180px]"
+              priority
+            />
+          </div>
           <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-light text-white leading-[1.1] tracking-tight">
             Your Private
             <br />
