@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { neon } from "@neondatabase/serverless";
+
+function getDirectDb() {
+  const url = process.env.DATABASE_URL_UNPOOLED || process.env.POSTGRES_URL_NON_POOLING || process.env.DATABASE_URL;
+  if (!url) throw new Error("No DB URL");
+  return neon(url);
+}
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "";
 
@@ -29,7 +35,7 @@ export async function DELETE(
   console.log(`Delete booking ${id}: using DB ${dbUrl.substring(0, 40)}`);
 
   try {
-    const db = getDb();
+    const db = getDirectDb();
     // Try exact match first
     let result = await db`DELETE FROM bookings WHERE id = ${id} RETURNING id`;
     // Fallback: strip ALL non-alphanumeric chars and compare alphanumeric-only
