@@ -4157,6 +4157,32 @@ function MessagesTab({ authToken }: { authToken: string }) {
 
 type Tab = "reservations" | "calendar" | "pricing" | "maintenance" | "expenses" | "campaigns" | "messages" | "contacts" | "journal" | "settings";
 
+const VALID_TABS: readonly Tab[] = [
+  "reservations",
+  "calendar",
+  "pricing",
+  "maintenance",
+  "expenses",
+  "campaigns",
+  "messages",
+  "contacts",
+  "journal",
+  "settings",
+];
+
+function getTabFromUrl(): Tab {
+  if (typeof window === "undefined") {
+    return "reservations";
+  }
+
+  const tab = new URLSearchParams(window.location.search).get("tab");
+  return VALID_TABS.includes(tab as Tab) ? (tab as Tab) : "reservations";
+}
+
+function getTabHref(tab: Tab): string {
+  return `/admin?tab=${tab}`;
+}
+
 export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [authToken, setAuthToken] = useState<string | null>(null);
@@ -4165,7 +4191,7 @@ export default function AdminPage() {
 
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<Tab>("reservations");
+  const [activeTab, setActiveTab] = useState<Tab>(() => getTabFromUrl());
 
   const fetchBookings = useCallback(async (token: string) => {
     setLoading(true);
@@ -4194,6 +4220,40 @@ export default function AdminPage() {
     const interval = setInterval(() => fetchBookings(authToken), 30000);
     return () => clearInterval(interval);
   }, [authToken, fetchBookings]);
+
+  useEffect(() => {
+    const syncTabFromUrl = () => {
+      setActiveTab(getTabFromUrl());
+    };
+
+    syncTabFromUrl();
+    window.addEventListener("popstate", syncTabFromUrl);
+    return () => window.removeEventListener("popstate", syncTabFromUrl);
+  }, []);
+
+  const setActiveTabWithUrl = useCallback((tab: Tab) => {
+    setActiveTab(tab);
+    window.history.pushState({}, "", getTabHref(tab));
+  }, []);
+
+  const handleTabClick = useCallback(
+    (event: React.MouseEvent<HTMLAnchorElement>, tab: Tab) => {
+      if (
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      setActiveTabWithUrl(tab);
+    },
+    [setActiveTabWithUrl]
+  );
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -4318,9 +4378,10 @@ export default function AdminPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <nav className="flex gap-1 -mb-px">
             {tabs.map((tab) => (
-              <button
+              <a
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                href={getTabHref(tab.id)}
+                onClick={(event) => handleTabClick(event, tab.id)}
                 className={cn(
                   "flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
                   activeTab === tab.id
@@ -4330,7 +4391,7 @@ export default function AdminPage() {
               >
                 {tab.icon}
                 {tab.label}
-              </button>
+              </a>
             ))}
           </nav>
         </div>
@@ -4340,9 +4401,10 @@ export default function AdminPage() {
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200">
         <nav className="flex overflow-x-auto">
           {tabs.map((tab) => (
-            <button
+            <a
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              href={getTabHref(tab.id)}
+              onClick={(event) => handleTabClick(event, tab.id)}
               className={cn(
                 "flex flex-col items-center justify-center min-w-[64px] flex-1 py-2 px-1 text-[10px] font-medium transition-colors",
                 activeTab === tab.id
@@ -4352,7 +4414,7 @@ export default function AdminPage() {
             >
               {tab.icon}
               <span className="mt-0.5 truncate">{tab.label}</span>
-            </button>
+            </a>
           ))}
         </nav>
       </div>
