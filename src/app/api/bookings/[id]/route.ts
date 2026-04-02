@@ -9,6 +9,20 @@ function verifyAuth(req: NextRequest): boolean {
   return token === ADMIN_PASSWORD;
 }
 
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  if (!verifyAuth(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const { id } = await params;
+  const db = getDb();
+  // Return raw IDs for debugging — list all bookings for Andrew van Bark
+  const rows = await db`SELECT id, guest_name, check_in FROM bookings WHERE guest_name ILIKE '%van bark%' OR id ILIKE ${'%' + id.substring(0,8) + '%'} ORDER BY created_at DESC LIMIT 10`;
+  return NextResponse.json({ query_id: id, matches: rows });
+}
+
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
