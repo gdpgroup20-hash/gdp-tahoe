@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -4190,6 +4190,7 @@ export default function AdminPage() {
   const [loginLoading, setLoginLoading] = useState(false);
 
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const deletedIdsRef = useRef<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>(() => getTabFromUrl());
 
@@ -4205,7 +4206,7 @@ export default function AdminPage() {
       }
       if (res.ok) {
         const data = await res.json();
-        setBookings(data.bookings ?? data);
+        setBookings((data.bookings ?? data).filter((b: Booking) => !deletedIdsRef.current.has(b.id)));
       }
     } catch {
       // silently fail on refresh
@@ -4421,7 +4422,7 @@ export default function AdminPage() {
 
       <main className="mx-auto max-w-7xl px-4 py-6 pb-24 md:pb-6 sm:px-6">
         {activeTab === "reservations" && (
-          <ReservationsTab bookings={bookings} loading={loading} authToken={authToken} onDeleted={(id) => setBookings((prev) => prev.filter((b) => b.id !== id))} />
+          <ReservationsTab bookings={bookings} loading={loading} authToken={authToken} onDeleted={(id) => { deletedIdsRef.current.add(id); setBookings((prev) => prev.filter((b) => b.id !== id)); }} />
         )}
         {activeTab === "calendar" && (
           <CalendarTab bookings={bookings} authToken={authToken} />
