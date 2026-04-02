@@ -14,12 +14,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {
-    // Prefer non-pooling URL for reads to avoid replica lag issues
+    // Use pooling URL (primary) to avoid replica lag on reads
     const url =
-      process.env.POSTGRES_URL_NON_POOLING ||
       process.env.DATABASE_URL ||
       process.env.POSTGRES_URL ||
       process.env.POSTGRES_PRISMA_URL ||
+      process.env.POSTGRES_URL_NON_POOLING ||
       process.env.STORAGE_URL;
 
     if (!url) {
