@@ -543,10 +543,14 @@ function ReservationsTab({
         <button
           className="rounded bg-yellow-400 px-3 py-1 text-xs font-medium hover:bg-yellow-500"
           onClick={async () => {
-            const res = await fetch("/api/bookings/GDP-DEBUG", { headers: { Authorization: `Bearer ${authToken}` } });
-            const data = await res.json();
-            const fmt = (rows: {id: string; guest_name: string; check_in: string}[]) => rows?.map(r => `${r.id} | ${r.guest_name} | ${r.check_in}`).join('\n') ?? 'none';
-            alert(`BOOKINGS:\n${fmt(data.bookings)}\n\nPLATFORM:\n${fmt(data.platform_reservations)}`);
+            try {
+              const res = await fetch("/api/bookings/GDP-DEBUG", { headers: { Authorization: `Bearer ${authToken}` } });
+              const text = await res.text();
+              let data: Record<string, unknown> = {};
+              try { data = JSON.parse(text); } catch { alert("Raw: " + text.substring(0, 500)); return; }
+              const fmt = (rows: {id: string; guest_name: string; check_in: string}[]) => Array.isArray(rows) ? rows.map(r => `${r.id} | ${r.guest_name} | ${r.check_in}`).join('\n') : JSON.stringify(rows);
+              alert(`STATUS: ${res.status}\nBOOKINGS:\n${fmt(data.bookings as {id: string; guest_name: string; check_in: string}[])}\n\nPLATFORM:\n${fmt(data.platform_reservations as {id: string; guest_name: string; check_in: string}[])}`);
+            } catch(e) { alert("Error: " + String(e)); }
           }}
         >
           Dump IDs
