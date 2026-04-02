@@ -25,7 +25,11 @@ export async function DELETE(
 
   try {
     const db = getDb();
-    await db`DELETE FROM bookings WHERE id = ${id}`;
+    const result = await db`DELETE FROM bookings WHERE id = ${id} RETURNING id`;
+    console.log(`Delete booking: id=${id}, rows deleted=${result.length}, returned=${JSON.stringify(result)}`);
+    if (result.length === 0) {
+      return NextResponse.json({ error: `No booking found with id: ${id}` }, { status: 404 });
+    }
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("Delete booking error:", err);

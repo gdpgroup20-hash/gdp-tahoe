@@ -491,7 +491,8 @@ function ReservationsTab({
       if (res.ok) {
         window.location.reload();
       } else {
-        alert("Failed to delete reservation. Please try again.");
+        const body = await res.json().catch(() => ({}));
+        alert(`Failed to delete reservation (${res.status}): ${body.error ?? "Unknown error"}`);
       }
     } catch {
       alert("Error deleting reservation.");
