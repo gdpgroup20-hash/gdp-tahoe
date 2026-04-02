@@ -537,6 +537,21 @@ function ReservationsTab({
         </div>
       )}
 
+      {/* TEMP DEBUG: Dump raw booking IDs */}
+      <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-4 text-sm">
+        <p className="font-semibold text-yellow-800 mb-2">🔧 Debug: Raw Booking IDs from DB</p>
+        <button
+          className="rounded bg-yellow-400 px-3 py-1 text-xs font-medium hover:bg-yellow-500"
+          onClick={async () => {
+            const res = await fetch("/api/bookings/GDP-DEBUG", { headers: { Authorization: `Bearer ${authToken}` } });
+            const data = await res.json();
+            alert(JSON.stringify(data.matches?.map((r: {id: string; guest_name: string; check_in: string}) => `${r.id} | ${r.guest_name} | ${r.check_in}`), null, 2));
+          }}
+        >
+          Dump IDs
+        </button>
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Card>
