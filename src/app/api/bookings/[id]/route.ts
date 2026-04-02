@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
 
-function getDirectDb() {
-  const url = process.env.DATABASE_URL_UNPOOLED || process.env.POSTGRES_URL_NON_POOLING || process.env.DATABASE_URL;
-  if (!url) throw new Error("No DB URL");
-  return neon(url);
-}
-
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "";
 
 function verifyAuth(req: NextRequest): boolean {
@@ -14,7 +8,6 @@ function verifyAuth(req: NextRequest): boolean {
   const token = auth.replace("Bearer ", "").trim();
   return token === ADMIN_PASSWORD;
 }
-
 
 export async function DELETE(
   req: NextRequest,
@@ -30,28 +23,11 @@ export async function DELETE(
     return NextResponse.json({ error: "Missing booking ID" }, { status: 400 });
   }
 
-  // Debug: log which DB URL is being used
-  const dbUrl = process.env.DATABASE_URL_UNPOOLED || process.env.POSTGRES_URL_NON_POOLING || process.env.DATABASE_URL || "none";
-  console.log(`Delete booking ${id}: using DB ${dbUrl.substring(0, 40)}`);
-
   try {
-    const db = getDirectDb();
-    // Try exact match first
-    let result = await db`DELETE FROM bookings WHERE id = ${id} RETURNING id`;
-    // Fallback: strip ALL non-alphanumeric chars and compare alphanumeric-only
-    // This handles font ambiguity (0/O, I/1, etc.) and any dash variations
-    if (result.length === 0) {
-      const alphaOnly = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, '');
-      const normId = alphaOnly(id);
-      const candidates = await db`
-        SELECT id FROM bookings
-        WHERE REGEXP_REPLACE(UPPER(id), '[^A-Z0-9]', '', 'g') = ${normId}
-      `;
-      console.log(`Delete fallback: normId=${normId}, candidates=${JSON.stringify(candidates)}`);
-      if (candidates.length === 1) {
-        result = await db`DELETE FROM bookings WHERE id = ${candidates[0].id} RETURNING id`;
-      }
-    }
+    const url = process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL;
+    if (!url) throw new Error("No DB URL");
+    const sql = neon(url);
+    const result = await sql`DELETE FROM bookings WHERE id = ${id} RETURNING id`;
     console.log(`Delete booking: id=${id}, rows deleted=${result.length}`);
     if (result.length === 0) {
       return NextResponse.json({ error: `No booking found with id: ${id}` }, { status: 404 });
@@ -59,6 +35,6 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("Delete booking error:", err);
-    return NextResponse.json({ error: "Failed to delete booking" }, { status: 500 });
+    return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }

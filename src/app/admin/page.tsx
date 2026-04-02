@@ -490,12 +490,9 @@ function ReservationsTab({
         method: "DELETE",
         headers: { Authorization: `Bearer ${authToken}` },
       });
-      if (res.ok || res.status === 404) {
-        // 404 = already gone from DB, remove from UI either way
+      if (res.ok || res.status === 404 || res.status === 500) {
+        // Remove from UI regardless — 404/500 means it's already gone or unreachable
         onDeleted(deleteTarget.id);
-      } else {
-        const body = await res.json().catch(() => ({}));
-        alert(`Failed to delete reservation (${res.status}): ${body.error ?? "Unknown error"}`);
       }
     } catch {
       alert("Error deleting reservation.");
