@@ -25,8 +25,20 @@ export async function DELETE(
 
   try {
     const db = getDb();
-    const result = await db`DELETE FROM bookings WHERE id = ${id} RETURNING id`;
-    console.log(`Delete booking: id=${id}, rows deleted=${result.length}, returned=${JSON.stringify(result)}`);
+    // Try exact match first
+    let result = await db`DELETE FROM bookings WHERE id = ${id} RETURNING id`;
+    // Fallback: normalize 0↔O confusion (old IDs used toString(36) which mixes digits and letters;
+    // monospace font wasn't used so 0 and O look identical to users)
+    if (result.length === 0) {
+      const normalize = (s: string) => s.toUpperCase().replace(/O/g, '0');
+      const normId = normalize(id);
+      // Find candidate rows whose normalized ID matches
+      const candidates = await db`SELECT id FROM bookings WHERE REPLACE(UPPER(id), 'O', '0') = ${normId}`;
+      if (candidates.length === 1) {
+        result = await db`DELETE FROM bookings WHERE id = ${candidates[0].id} RETURNING id`;
+      }
+    }
+    console.log(`Delete booking: id=${id}, rows deleted=${result.length}`);
     if (result.length === 0) {
       return NextResponse.json({ error: `No booking found with id: ${id}` }, { status: 404 });
     }

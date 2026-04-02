@@ -81,5 +81,9 @@ export async function getBookingsByProperty(propertySlug: string): Promise<Booki
 }
 
 export function generateBookingId(): string {
-  return `GDP-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+  // Avoid ambiguous chars: 0/O and 1/I look identical in most fonts
+  const safe = (s: string) => s.replace(/[0OI1]/g, (c) => ({ '0': 'A', 'O': 'B', 'I': 'C', '1': 'D' }[c] ?? c));
+  const part1 = safe(Date.now().toString(36).toUpperCase());
+  const part2 = safe(Math.random().toString(36).substring(2, 6).toUpperCase());
+  return `GDP-${part1}-${part2}`;
 }
